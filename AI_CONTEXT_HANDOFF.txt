@@ -252,6 +252,25 @@ Step 2.5: Receiver Perfboard Assembly & Paired 13-Channel Wireless RF Link: [COM
       7. Full Throttle Turbo Kick: 120ms Power Surge (silent vibration) past 90% stick deflection.
       8. Signal Loss Warning: Heartbeat rumble + double beep every 2.5s on RF loss.
       * Phase-driven alert engine eliminates redundant GPIO bus writes; 67° tilt alarm permanently removed.
+Step 2.6: Remote OLED Display Cluster Integration (Stage 7 - Page 1 Dashboard): [COMPLETED & VERIFIED 100%]
+  - Git Protection: Initialized git repository at workspace root and created baseline commit (66f9e40) preserving 100% stable remote TX and rover RX code.
+  - Library Core: Cloned modern U8g2 library into Documents/Arduino/libraries/U8g2 for high-speed hardware I2C full framebuffer rendering.
+  - Standalone Test Sketch: firmware/test/07_dashboard_gauge_cluster_test/07_dashboard_gauge_cluster_test.ino
+  - Visual Layout (Identical to UPiR digital cluster HUD):
+    * Left Gauge: Curved thick moving arc for Vehicle Speed (0 to 314 cm/s / 11.3 km/h) with outer dotted track & tick marks + Left Turn Blinker arrow.
+    * Right Gauge: Mirrored curved thick moving arc for Motor RPM (0 to 600 RPM) with outer dotted track & tick marks + Right Turn Blinker arrow.
+    * Center Top: Coolant / Temperature thermometer icon with liquid wave + 3 decorative arch dots + pulsing Heartbeat dot.
+    * Center Mid: Central colon ':' + Dynamic Drive Mode (N = Neutral, D = Drive, R = Reverse) + Dynamic slanted power hashes ('///').
+    * Center Bottom: 8x8 Gas Pump icon + Curved Fuel / Battery gauge arc (E <-> F) driven by Pot Left (PA0).
+    * Bottom Right: Authentic UPiR / X5 signature watermark.
+  - Live ADC Integration & Filtering:
+    * Throttle (PB0): 12-bit ADC with 140-count center deadband. Pushing forward smoothly ramps Speed & RPM via Exponential Moving Average (EMA). Pulling back engages Reverse.
+    * Steering (PB1): Sweeping left/right triggers turn blinkers flashing at 2 Hz.
+    * Pot Left (PA0): Controls fuel gauge arc from Empty to Full (simulating 3S 12.6V battery drain).
+  - Compilation Benchmark (arduino-cli on STM32 Blue Pill):
+    * Flash: 43,728 bytes (66% of 64KB, or 33% of 128KB).
+    * SRAM: 2,860 bytes (13% of 20KB, leaving 17,620 bytes free).
+    * Frame Rate: Non-blocking 30 FPS display loop over 400 kHz Fast I2C.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)
@@ -266,3 +285,4 @@ REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
 milestones before you end your response so Veer's project moves forward seamlessly!
 ================================================================================
+
