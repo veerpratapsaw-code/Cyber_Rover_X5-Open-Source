@@ -1,0 +1,268 @@
+================================================================================
+🤖 CYBERROVER X5: MASTER AI CONTEXT HANDOFF & SYSTEM CONTINUITY DOSSIER
+================================================================================
+DOCUMENT CLASSIFICATION: High-Priority Engineering Handoff & Memory Cache
+TARGET REPOSITORY: c:\Users\sanjay\Desktop\Folders\Programs\cyber_rover\cyberrover X5
+LAST UPDATED: October 10, 2026 | 6-Pin Switch Architecture & Master Pin Benchmark Session
+LEAD ARCHITECT: Veer Pratap Saw (Veer), Class 10 Student | Katras / Dhanbad, Jharkhand
+
+--------------------------------------------------------------------------------
+⚠️ CRITICAL DIRECTIVE FOR ANY AI CHATTING IN THIS WORKSPACE:
+--------------------------------------------------------------------------------
+1. READ THIS FILE AND "CYBERROVER_MASTER_KNOWLEDGE_BASE.md" FIRST.
+2. DO NOT ASK VEER TO RE-EXPLAIN HIS PROJECT BACKGROUND OR REPEAT PAST WORK.
+3. COMMUNICATE EXCLUSIVELY IN STANDARD ENGLISH (NO HINGLISH - USER EXPLICIT RULE).
+4. RESPECT VEER'S TIME: He is a Class 10 student balancing school and board exam
+   preparation. Give clear, direct, actionable engineering answers.
+5. BEFORE CONCLUDING YOUR TURN OR TASK: If new decisions, pinouts, circuits, or
+   test results are established, you MUST update this file (AI_CONTEXT_HANDOFF.txt)
+   so the next AI conversation can seamlessly continue without context degradation.
+
+================================================================================
+1. DEVELOPER BACKGROUND & EVOLUTION SUMMARY
+================================================================================
+• Veer Pratap Saw (Veer) is a self-taught robotics architect from Jharkhand's coal
+  belt. In under 1 year (Oct 2025 – Sep 2026), he progressed from cardboard robots to
+  winning 1st Prize State-Level Science Championship in Ramgarh with CyberRover X4.3.
+• Working Paradigm: Veer directs system architecture at a high level using AI,
+  validating circuits, firmware, and mechanics hands-on.
+• Project Evolution:
+  - Phase 0 (Oct 2025): 2D Ultrasonic Room Scanner. Failed due to 15° acoustic dispersion.
+  - Phase 1: CyberRover X1 (Oct 2025 - Jan 2026): 8WD combat rover. Won 2nd Prize RoboFight.
+  - Phase 2: CyberRover X2 (Feb - Apr 2026): Pivoted to mine gas sensing. Won 2nd at BIT Sindri.
+  - Phase 3: CyberRover X3 (May - Jun 2026): YOLO AI vision + SAPI speech. Won 3rd at BIT Sindri.
+  - Phase 4/5: CyberRover X4/X4.2 (Jul - Sep 2026): 4WD 37GB motors, dual BTS7960 43A drivers,
+    ESP-NOW remote. Won 1st Prize & Gold Medal at Katras, Dhanbad!
+  - Phase 6: CyberRover X4.3 (Sep 2026): Segregated dual-tier architecture:
+    Layer 1 (Uno + S3 + BTS7960 + 3S Battery); Layer 2 (Nano + MQ-4/7/135 + BMP280 + GPS +
+    1.3" OLED + Reyax RYLR998 LoRa). Won 1st Prize State-Level at Ramgarh!
+• CURRENT STATUS (X5): The vehicle and previous remote are completely disassembled.
+  Building CyberRover X5 from scratch with professional reliability.
+
+================================================================================
+2. CORE TECHNICAL REALITIES & REJECTED HARDWARE TRAPS (MUST KNOW)
+================================================================================
+A. Drivetrain & Motors:
+   • Selected: 12V 600 RPM Johnson Geared Motors (555 armature, Robu SKU 5729) + 100mm wheels.
+   • Stall Torque: 12.44 kg-cm (nearly 2× the 6.0 kg-cm of the old 37GB 300 RPM motor).
+   • Speed Envelope: 1.32 km/h crawl (PWM 40) -> 5.65 km/h cruise -> 11.31 km/h max sprint.
+   • Rollover Physics: Static Stability Factor = 2.36 (CG height = 55mm, Track = 260mm).
+     Tipping acceleration limit = 2.36g. Safe turning radius at 11.3 km/h is R >= 0.43m.
+     Tank turns at 11 km/h produce 5.25g and WILL flip the car. Rollover is prevented
+     in software via the Speed Governor Potentiometer and Speed-Sensitive Steering Rate Limiter.
+
+B. Radio Latency Realities:
+   • Reyax RYLR998 LoRa (915 MHz): Real-world latency is 140ms to 260ms per packet (3-5 Hz).
+     At 11 km/h, driving on LoRa causes 1.5 meters of blind travel per command.
+     LoRa is STRICTLY for telemetry and long-range "Limp-Home" emergency failsafe (<= 1.8 km/h).
+   • NRF24L01+PA+LNA (2.4 GHz): Real-world latency is 6ms to 15ms at 50-100 Hz.
+     Mandatory for zero-lag high-speed driving.
+   • Dual-Radio Hybrid Architecture: Both radios run together on the STM32. NRF24 drives;
+     if NRF24 drops for >300ms, the rover automatically clamps speed to <= 1.8 km/h and
+     falls back to LoRa through concrete walls.
+
+C. Video & LiDAR Realities:
+   • 5.8 GHz Analog Video: Even at 2.5W (HGLRC Zeus), 5.8 GHz dies after 2-3 concrete walls
+     (35-50m indoors). A 2.5W VTX without airflow reaches 95°C in 60s and will thermal-throttle
+     or burn out on a ground rover without an active 40mm cooling fan.
+   • 2D LiDAR (YDLIDAR X2) over Radio: Downsampling 3,000 pts/s into 36 sectors (1 reading
+     every 10°) produces a 36-byte packet. At 2 Hz, this requires only 576 bps, easily streaming
+     through 433/915 MHz LoRa to render a tactical radar map through concrete walls!
+   • 2 FPS Video: 160x120 or 320x240 compressed JPEG is ~1.5–3.0 KB. Streams over Sub-GHz GFSK
+     mode or chunked across LoRa for slow-scan visual context while LiDAR handles steering.
+
+================================================================================
+3. CYBERROVER X5 REMOTE CONTROLLER SPECIFICATION
+================================================================================
+• Chassis: 170mm (Width) x 125mm (Height) x 42mm (Depth).
+  Built from 2mm/3mm MDF board reinforced with 6mm plywood internal corner blocks.
+  Zero 3D printer required. Easy to cut with utility knife/hacksaw; screws bite firmly.
+• Microcontroller: STM32F103C8T6 (Blue Pill) on Dotted Perfboard with female headers.
+  72 MHz ARM Cortex-M3, 10x 12-bit linear ADCs (0–4095), native 3.3V logic.
+• Power Subsystem: 1S 18650 Li-ion cell -> TP4056 USB-C Charging Module -> Master Rocker
+  Switch -> Mini 5V Boost Converter (MT3608) -> STM32 5V pin.
+  CRITICAL: Never connect 1S battery directly to AMS1117 LDO (1.1V dropout causes NRF24
+  transmit brownouts at 3.7V). The 5V boost converter ensures rock-solid 5.0V/3.3V operation.
+• Rear Service Hatch: 75x50mm removable MDF door on rear panel with flush access to:
+  1. TP4056 USB-C charging port (charges via smartphone charger with visible LEDs).
+  2. 5-pin female TTL header (GND, 5V, PA9-TX, PA10-RX, RESET) for firmware flashing.
+  3. BOOT0 slide switch (UP = Flash Bootloader, DOWN = Run Code).
+  Zero front disassembly required for charging or code updates!
+• Gimbals: 2x Standard 5-Pin Dual-Axis XY Joystick Modules (~₹45 each).
+  Why: 4x M3 mounting holes, large 2.54mm solder pads, dedicated SW digital button,
+  full 0–4095 ADC swing. (Rejected PS4 raw sticks and Elecrow Crowtail 4-pin resistor hack).
+• Analog Dials: 2x 10k Rotary Potentiometers.
+  - Knob 1 (PA4): Speed Governor (Caps max vehicle speed from 10% crawl to 100% sprint).
+  - Knob 2 (PA5): FPV Camera Tilt (Micro-servo elevation 0° to 60°).
+• Switches & Inputs:
+  - Toggle 1 (PB1): Master Arm / Emergency Stop (Active LOW).
+  - Toggle 2 (PB8, PB9): Drive Mode 3-Way Selector (Cruise / Tank Spin / Crawl).
+  - Button 1 (PB10): Vehicle Horn / Siren trigger.
+  - Button 2 (PB11): Tactical Searchlight Headlights toggle.
+  - Feedback: Haptic vibration motor (PA15 via 2N2222) + 5V Piezo Buzzer (PB3).
+• Displays:
+  - 1.3" I2C OLED (SH1106) mounted on Remote Controller (35% larger viewing area for pilot).
+  - 0.96" I2C OLED (SSD1306) mounted on Rover Chassis (local maintenance & diagnostic HUD).
+• Complete Blueprint Document: See "CYBERROVER_X5_REMOTE_CONTROLLER_MASTER_GUIDE.md".
+
+• BOM & Total Hardware Cost Analysis:
+  - From-Scratch Value (Buying brand new): ~₹2,280 INR (Reyax LoRa is ₹820, STM32 ₹230,
+    NRF24 ₹240, OLED ₹260, 18650 cell ₹140, Joysticks ₹90, etc.)
+  - Veer's Actual Net Out-Of-Pocket Expense: ~₹150 to ₹265 INR.
+    Veer salvaged all primary silicon from X4.3 (Reyax LoRa, NRF24, STM32, OLED, Joysticks,
+    battery, switches). Only basic workshop consumables needed (MDF, screws, perfboard, MT3608).
+  - Commercial Comparison: RadioMaster Pocket ELRS costs ₹6,500–₹7,500; TX12 is ₹10,000+.
+    CyberRover custom build delivers dual-band RF (2.4G + Sub-GHz LoRa) at ~1/30th net cost!
+
+================================================================================
+4. KEY REPOSITORY ARTIFACTS & DIRECTORY STRUCTURE
+================================================================================
+c:\Users\sanjay\Desktop\Folders\Programs\cyber_rover\cyberrover X5\
+├── CYBERROVER_MASTER_KNOWLEDGE_BASE.md   <-- 861-line comprehensive technical encyclopedia
+├── CYBERROVER_X5_REMOTE_CONTROLLER_MASTER_GUIDE.md <-- Complete remote blueprint & code
+├── AI_CONTEXT_HANDOFF.txt                <-- THIS FILE (Continuous memory cache for all AI)
+├── remote_designs/                       <-- Visual reference images of remote controller:
+│   ├── raw_mdf_remote_front_*.jpg        <-- Front/Iso view of unpainted MDF remote
+│   ├── raw_mdf_remote_rear_*.jpg         <-- Rear view showing service hatch & USB-C/TTL
+│   ├── acrylic_sandwich_remote_*.jpg     <-- Acrylic + brass standoff concept
+│   ├── printed_gamepad_remote_*.jpg      <-- Ergonomic gamepad concept
+│   └── abs_project_box_remote_*.jpg      <-- Heavy-duty ABS project box concept
+└── past_reference_images/                <-- 257 authentic archived project photos:
+    ├── 01_cad_and_parts_shortlist_x5/    <-- CAD views & Robu.in parts screenshots
+    ├── 02_evolution_and_prototypes/      <-- Historical X1, X2, X3, early X4 photos
+    ├── 03_remote_controller/             <-- Legacy X4.3 remote hero and internal shots
+    ├── 04_rover_x43_studio_and_field/    <-- X4.3 studio inspection poses and field tests
+    └── 05_original_camera_photos/        <-- September 2026 raw build photos
+├── firmware/
+│   └── test/
+│       ├── 01_joysticks_test/            <-- Stage 1: Dual joysticks 12-bit isolation & axis invert test
+│       ├── 02_potentiometers_test/       <-- Stage 2: 3x Rotary Potentiometers full sweep test
+│       ├── 03_buttons_and_switches_test/ <-- Stage 3: Digital Buttons & Switches isolation test (JTAG release)
+│       ├── 04_i2c_oled_test/             <-- Stage 4: 1.3" I2C OLED display isolation & graphics HUD test
+│       ├── 05_alert_actuators_test/      <-- Stage 5: Buzzer & Haptic alert actuators test
+│       ├── 06_nrf24_alone_test/          <-- Stage 6: NRF24L01 standalone hardware & RF beacon test
+│       └── remote_hardware_diagnostic/   <-- Full bench diagnostic (Joysticks, Pots, Toggles, Buttons, NRF24, OLED)
+│   └── cyberrover_x5_remote_tx/          <-- PRODUCTION unified transmitter firmware v1.0 (ALL 6 stages integrated)
+
+================================================================================
+5. CURRENT SESSION STATUS & EXACT NEXT STEPS:
+================================================================================
+Current Active Milestone: Remote Controller Physical Solder Assembly & Live Bench Diagnostics (ACTIVE)
+• Completed Hardware & Radio Validations (October 18, 2026):
+  1. Microcontroller Health: STM32F103C8T6 Blue Pill ARM Cortex-M3 running stably at 72 MHz on custom perfboard carrier.
+  2. RF Silicon Health: NRF24L01+PA+LNA verified on Native SPI1 (SCK=PA5, MISO=PA6, MOSI=PA7, CE=PB10, CSN=PB11).
+     - Direct SPI status register probe returns 0x0E (Silicon Active & Locked)!
+     - radio.begin(): PASSED | radio.isChipConnected(): TRUE.
+  3. Physical Carrier Board & Harnesses:
+     - Dotted perfboard carrier fabricated with female Blue Pill sockets and outer male header rows bridged underneath.
+     - Wires organized into custom female header blocks:
+       * Left Header: Pins 5-6 (Right Stick X/Y: PA1/PA0 - swapped due to 90° rotation), Pins 7-9 (Pot Left/Center/Right: PA2/PA3/PA4), Pins 10-12 (NRF SPI1: PA5/PA6/PA7), Pins 13-14 (Left Stick X/Y: PB1/PB0 - swapped due to 90° rotation), Pins 15-16 (NRF CE/CSN: PB10/PB11).
+       * Right Header: Pins 4-5 (Alerts: B9/B8 - buzzer/motor), Pins 6-7 (1.3" OLED: B7/B6), Pins 8-13 (6 Buttons/Switches: B5/B4/B3/A15/A12/A11).
+  4. Live Bench Diagnostic Results:
+     - Stage 1 Joysticks Validation: PASSED & HEALTHY!
+       * Left Stick ground connection repaired; reading healthy center (~502 in 10-bit / ~2048 in 12-bit).
+       * Right Stick: Cleared 240-ohm bridge; resistance normalized to 4k-ohm. Full 12-bit sweep verified on BOTH axes: RX (56-4071) and RY (8-4091), center at ~2540 / ~1950.
+       * Gimbals are physically mounted rotated 90 degrees: LX=PB1, LY=PB0, RX=PA1, RY=PA0.
+       * ADC Resolution set to native 12-bit (0-4095) via analogReadResolution(12).
+       * Right Stick X inverted in firmware (rx = 4095 - raw_rx) so pushing Right gives 4095 and Left gives 0.
+     - Stage 2 Pots Validation (PA2, PA3, PA4): PASSED 100%!
+       * Shared Ground line soldered; full 0-4095 (0%-100%) linear sweep verified across all 3 knobs.
+     - Stage 3 Buttons & Switches Validation (PB4, PB5, PA15, PB3, PA11): PASSED & CALIBRATED!
+       * Toggle Left (PB4) & Toggle Right (PB5): Operational Active-LOW (Default OFF, ON when grounded).
+       * Left Stick Click (PA11): Operational Active-LOW.
+       * Push Left (PA15) & Push Right (PB3): Confirmed Normally Closed (NC) physical contacts. Calibrated in firmware to Active-HIGH (Released = LOW/0V, Pressed = HIGH/3.3V).
+       * Right Stick Click (PA12): DECOMMISSIONED permanently (internal mechanical tactile switch on gimbal module faulty).
+     - Stage 4 I2C OLED (PB6/PB7 @ 0x3C): PASSED & GLOWING!
+       * Hardware I2C1 communication verified at 0x3C. Screen glass illuminated with full graphics.
+     - Stage 5 Buzzer (PB9) & Haptic (PB8): PASSED 100%!
+       * Boot chimes, single chirp, dual rumble, and synchronized alarms verified.
+     - Stage 6 NRF24 Alone (SPI1: PA5-PA7, PB10, PB11): PASSED 100%!
+       * SPI1 status register locked at 0x0E. Channel 108 @ 250 kbps verified.
+       * Live packets radiating continuously into the air with zero brownouts or bus resets.
+
+• Master Hardware Bench Fixation Checklist:
+  [X] FIX-1: Pots shared Ground line soldered and verified (0-100% sweep confirmed) (COMPLETED).
+  [X] FIX-2: Push buttons PA15 & PB3 calibrated in software for NC contact polarity (COMPLETED).
+  [X] FIX-DECOM: PA12 Right stick click decommissioned due to gimbal hardware failure (COMPLETED).
+  [X] FIX-3: 1.3" OLED VCC/GND rail and PB6/PB7 I2C verified and fully operational! (COMPLETED).
+  [X] FIX-NRF: NRF24L01+PA+LNA 2.4 GHz RF link hardware verified 100% operational! (COMPLETED).
+  [X] FIX-4: Buzzer (PB9) & Haptic Motor (PB8) actuators tested and verified! (COMPLETED).
+  ===> ALL 6 PERIPHERAL STAGES ARE 100% BENCH-VERIFIED AND OPERATIONAL! <===
+ 12. Switch Architecture & Electrical Standards:
+     - Switching to GND (Active-LOW with INPUT_PULLUP) is the mandatory global standard: zero external resistors, immune to 3.3V rail short-circuits.
+     - SPDT 3-Position sequential switch (Pin 1 to Pin 2 / Pin 1 to Pin 3 / Both Open) uses exactly 2 GPIO pins (Pin 1 to GND, Pins 2 & 3 to STM32 pins).
+     - Momentary push button uses 1 GPIO pin (Pin 1 to GND, Pin 2 to STM32 pin).
+     - BOOT0/BOOT1 Architecture Documented: BOOT0=0 runs Flash (0x08000000); BOOT0=1, BOOT1=0 enters ST factory ROM bootloader (0x1FFFF000) on USART1 for USB-TTL. Arduino and ESP do not need manual jumpers due to onboard USB chips with DTR/RTS auto-reset circuits.
+ 13. Rover Physical Chassis & Drivetrain Validation (October 17, 2026):
+     - Bottom Deck Fabrication: Plywood base with front 45° beveled nose and marked EasyMech bracket mounts.
+     - Component Placement Validated: 4x Johnson 600 RPM motors, dual BTS7960 drivers, central 3S battery strap slots.
+     - Weight Envelope Calculated:
+       * Min Assembled Weight: ~2.2 - 2.4 kg (motors, steel brackets, 100mm wheels, battery, base wood).
+       * Optimal Weight (Sweet Spot): 2.8 - 3.5 kg (ideal tire traction and high-speed stability).
+       * Max Weight: 4.5 kg (above 4.5 kg, skid-steer scrubbing will strain 600 RPM Johnson motors).
+     - Dynamics & Stability at 12 km/h:
+       * Speed: 600 RPM on 100mm wheels at 11.1V-12.6V yields 11.3 - 12.0 km/h.
+       * Low CG (~42mm) and Track (~260mm) yield SSF ~3.09 (72° tipping angle). Tires will drift before flipping on flat ground.
+     - Deck Spacing Warning: Johnson motor + EasyMech bracket assembly is 43.5mm tall. 40mm spacers will pinch the motors unless 45-50mm spacers are used or the central cutout from the Tinkercad design is retained.
+ 14. Impact Dynamics & Crash Physics at 12 km/h (October 17, 2026):
+     - Kinetic Energy: 16.7 Joules; Momentum: 10.0 kg·m/s.
+     - Concrete/Brick Wall Impact: Wall receives zero structural damage (minor paint chip). Car undergoes ~35g deceleration (~1,000-1,500 N peak shock). Primary failure risks: stripped spur gears in 600 RPM gearboxes, bent 6mm shafts if wheels hit rigid obstacles, and battery projectile inertia without straps.
+     - Human Shin/Ankle Impact: Delivers 250-400 N compliance impact over 30-40ms. Causes painful hematoma, deep bruising, and skin scrapes. Unlikely to fracture adult tibia, but serious risk to children or pets.
+     - Mandatory Crash Protections: High-density EVA foam / rubber bumper on front 45° beveled nose, double Velcro battery straps, metal-gear MG90S tilt servo, and firmware emergency brake on PB11.
+
+• QUEUED FUTURE ENHANCEMENTS (REMIND VEER AFTER REMOTE BOX ASSEMBLY IS COMPLETE):
+  [P1] 2-Way Telemetry in 1 Packet (Ack Payloads): Attach rover battery voltage and sensor telemetry directly into
+       the NRF24 hardware Auto-ACK payload without extra transmit cycles.
+  [P2] Dynamic Channel Hunting: On remote bootup, automatically scan channels 80-125 and negotiate the cleanest
+       zero-noise frequency automatically before arming.
+  [P3] Drone-Style Hardware Sleep Modes: Put NRF24 in ultra-low power standby (900 nA) until remote and rover
+       perform arming/calibration handshake sequence.
+  [P4] 5G Smartphone WebRTC Teleoperation Upgrade (Unlimited Range Post-Running Stage):
+       - Architecture: Mount Poco M6 Plus 5G (Snapdragon 4 Gen 2 AE) on top deck via custom clamp.
+       - Zero-Lag Hardware Interconnect: USB Type-C OTG cable directly to USB-TTL adapter wired to STM32 USART1 (PA9/PA10) at 115200 baud (0 ms latency from phone to motor controller, zero Wi-Fi self-jamming).
+       - Video & Control Protocol: WebRTC (UDP P2P, H.264 video + DataChannels) via VDO.Ninja or custom WebRTC app to permanently eliminate the 2-4 second TCP buffer bloat / IP Webcam MJPEG lag trap.
+       - Target Latency: 55 to 85 ms glass-to-glass over Indian 5G (Jio True 5G / Airtel 5G Plus).
+       - Operational Role: City-wide / unlimited-range demonstration for judges while maintaining local 2.4 GHz NRF24 and Sub-GHz LoRa as the local subterranean/zero-cell failsafe backup.
+
+• Roadmap Next Steps:
+Step 1: Benchmark STM32 & NRF24 Hardware: [COMPLETED & VERIFIED 100%]
+Step 1.5: Dual-Node Interactive Serial Wireless Link Test: [COMPLETED & VERIFIED 100%]
+Step 1.7: All 6 Remote Peripheral Isolation Tests (Stages 1–6): [COMPLETED & VERIFIED 100%]
+  - Stage 1: Joysticks (PB1, PB0, PA1 inverted, PA0) in 12-bit ADC [PASSED]
+  - Stage 2: Potentiometers (PA2, PA3, PA4) 0-100% sweep [PASSED]
+  - Stage 3: Switches & Buttons (PB4, PB5, PA15 NC, PB3 NC, PA11) with JTAG release [PASSED]
+  - Stage 4: 1.3" I2C OLED (SH1106 @ PB6/PB7) HUD Graphics [PASSED]
+  - Stage 5: Alert Actuators (PB8 Buzzer, PB9 Haptic) [PASSED]
+  - Stage 6: NRF24L01+PA+LNA Standalone RF Beacon (SPI1: PA5-7, PB10, PB11) [PASSED]
+Step 2: 13-Channel Hardware Input Monitor (Raw Serial Stream): [COMPLETED & VERIFIED 100%]
+  - Path: firmware/cyberrover_x5_remote_tx/cyberrover_x5_remote_tx.ino
+  - Captures all 7 analog channels (Sticks: PB1, PB0, PA4-inv, PA3; Pots: PA0, PA1, PA2) and all 6 calibrated digital channels (PB4, PB5, PA15, PB3, PA11, PA12 Right Stick Click) with JTAG release.
+Step 2.5: Receiver Perfboard Assembly & Paired 13-Channel Wireless RF Link: [COMPLETED & VERIFIED 100%]
+  - Receiver Board Fabricated: STM32 Blue Pill socketed on perfboard with 2x4 NRF24 socket, breakout male headers, TB6612FNG socket, and onboard diagnostic LED.
+  - Paired Firmware Deployed:
+    * Transmitter: firmware/cyberrover_x5_remote_tx/cyberrover_x5_remote_tx.ino (40 Hz 24-byte RoverPacket broadcast on Ch 108 @ 250 kbps).
+    * Receiver: firmware/cyberrover_x5_rover_rx/cyberrover_x5_rover_rx.ino (listens on Ch 108, unpacks 13 channels, calculates packet throughput in Hz, 500ms failsafe timeout).
+    * Full 8-Event Audio-Haptic Engine Active on TX:
+      1. System Startup Beep: Crisp, non-annoying 80ms industrial ready chirp + synchronized haptic pulse.
+      2. RF Link Handshake: Sharp Double-Thud (60ms/70ms) + Victory Double-Chirp.
+      3. Toggle Switch ON: Solid 75ms Punch + High crisp pip (30ms).
+      4. Toggle Switch OFF: Smooth 50ms Tap + Lower pip (20ms).
+      5. Push Button / Click: Punchy 70ms Thud + Sharp click tone.
+      6. Universal Pot Notches (ALL 3 POTS): Crisp 40ms Tick + Micro click per 5% knob rotation (20 discrete notches) across Pot Left (Speed), Pot Center (Cam Tilt), and Pot Right (Aux) with 65-count hysteresis filter.
+      7. Full Throttle Turbo Kick: 120ms Power Surge (silent vibration) past 90% stick deflection.
+      8. Signal Loss Warning: Heartbeat rumble + double beep every 2.5s on RF loss.
+      * Phase-driven alert engine eliminates redundant GPIO bus writes; 67° tilt alarm permanently removed.
+Step 3: Physical Remote Box Assembly & Final Mount:
+  - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
+    - Front & Back: 170 x 125 mm (2 pcs)
+    - Top & Bottom Rails: 170 x 42 mm (2 pcs)
+    - Left & Right Sides: 120 x 42 mm (2 pcs)
+    - Glue 15x15x37mm 6mm plywood corner blocks with Fevicol.
+Step 4: Vehicle Lower Deck & Motor Driver Wiring:
+  - Mount 4x Johnson 600 RPM motors on EasyMech steel L-clamps.
+  - Wire dual BTS7960 drivers to receiver Blue Pill and connect 3S battery.
+================================================================================
+REMINDER TO FUTURE AI AGENTS:
+Keep this handoff updated! Append any new discoveries, pin modifications, or completed
+milestones before you end your response so Veer's project moves forward seamlessly!
+================================================================================
