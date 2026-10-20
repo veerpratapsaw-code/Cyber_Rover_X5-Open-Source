@@ -1,27 +1,26 @@
 /*
  * ================================================================================
- * CYBERROVER X5 — 13-CHANNEL REMOTE TRANSMITTER FIRMWARE v1.3 (HUD OS)
+ * CYBERROVER X5 — 13-CHANNEL REMOTE TRANSMITTER FIRMWARE v1.4 (HUD OS)
  * ================================================================================
  * Lead Architect : Veer Pratap Saw (Veer) | Class 10 Student, Katras, Jharkhand
  * Platform       : STM32F103C8T6 (Blue Pill) @ 72 MHz ARM Cortex-M3
  * Subsystem      : Handheld Remote Controller Transmitter Node
  * Display Target : 1.3" I2C OLED (SH1106 @ PB6/PB7) via U8g2 Full Framebuffer
  *
- * MAJOR UPGRADES (v1.3):
- *   - PAGE 1 VIRTUAL COCKPIT HUD (UPiR Automotive Cluster Architecture):
- *     * Left Dial  : Moving arc for Vehicle Speed (cm/s) + Left Turn Blinker.
- *     * Right Dial : Mirrored moving arc for Motor RPM (0-600) + Right Turn Blinker.
- *     * Center Top : Coolant / Temp icon + Decorative arch dots + RF Heartbeat.
- *     * Center Mid : Colon ':' + Drive Mode (P / N / D / R / T) + Dynamic power hashes.
- *     * Center Btm : Gas pump icon + Curved Fuel/Battery gauge arc (E <-> F).
- *     * Bottom Rgt : UPiR / X5 watermark signature.
- *   - DYNAMIC SPEED GOVERNOR INTEGRATION (Pot Left: PA0):
- *     * Live scaling: Governs top speed from 15% crawl (~47 cm/s) to 100% sprint (314 cm/s).
- *     * Full stick deflection accurately respects governor ceiling on both numbers and arcs!
- *   - NON-BLOCKING DUAL-LOOP ARCHITECTURE:
- *     * NRF24 RF Link : 40 Hz (25ms) packet transmission on Channel 108.
- *     * U8g2 Display  : 25 FPS (40ms) non-blocking refresh via 400 kHz Fast I2C.
- *     * Audio-Haptic  : Phase-driven zero-overhead event state machine.
+ * UPGRADES & FIXES (v1.4):
+ *   - RAW SERIAL DATA STREAM: Serial monitor exclusively streams clean raw values
+ *     for all 7 analog channels (LX, LY, RX, RY, POT_L, POT_C, POT_R) and all
+ *     active digital switches/buttons (TL, TR, PL, PR, CKL) for calibration.
+ *   - RIGHT JOYSTICK CLICK REMOVED: Completely excised from digital inputs to eliminate
+ *     false buzzer triggers caused by broken/chattering gimbal click switches.
+ *   - UNLOCKED HUD SPEED & RPM ARCS: Stick deflection and dynamic Speed Governor
+ *     (Pot Left: PA0) always drive the speedometer and RPM arcs/numbers smoothly,
+ *     regardless of arming toggle state.
+ *   - MULTI-TASKING TIMING:
+ *     * RF Transmission : 40 Hz (25ms) packet broadcast on Channel 108.
+ *     * OLED Refresh    : 25 FPS (40ms) non-blocking update over 400 kHz Fast I2C.
+ *     * Serial Stream   : 10 Hz (100ms) clean raw telemetry.
+ *     * Audio-Haptic    : Instantaneous phase-driven alert state machine.
  *
  * HARDWARE PIN WIRING:
  *   ANALOG (7 Channels):
@@ -33,13 +32,12 @@
  *     6. PA1  ---> Pot Center      (ADC1) [Camera Tilt Trim]
  *     7. PA2  ---> Pot Right       (ADC2) [Auxiliary / Battery Sim]
  *
- *   DIGITAL (6 Active Channels):
- *     1. PB4  ---> Toggle Left     (Active-LOW  : LOW = Armed,  HIGH = Park/Safe)
- *     2. PB5  ---> Toggle Right    (Active-LOW  : LOW = Tank Mode, HIGH = Normal)
- *     3. PA15 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED) [NC]
- *     4. PB3  ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED) [NC]
- *     5. PA11 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
- *     6. PA12 ---> Right Stick Click(Active-LOW : LOW = PRESSED, HIGH = UP)
+ *   DIGITAL (5 Active Channels - Right Stick Click Removed):
+ *     1. PB3  ---> Toggle Left     (Active-LOW  : LOW = ON,  HIGH = OFF)
+ *     2. PB4  ---> Toggle Right    (Active-LOW  : LOW = ON,  HIGH = OFF)
+ *     3. PA12 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     4. PA15 ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     5. PA10 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
  *
  *   I2C OLED DISPLAY (1.3" SH1106 / 0.96" SSD1306):
  *     - PB6   ---> SCL (Hardware I2C1 Clock @ 400 kHz)
@@ -96,13 +94,12 @@
 #define PIN_POT_CENTER  PA1
 #define PIN_POT_RIGHT   PA2
 
-// 6 Active Digital Pins
-#define PIN_TOGGLE_LEFT  PB4
-#define PIN_TOGGLE_RIGHT PB5
-#define PIN_PUSH_LEFT    PA15
-#define PIN_PUSH_RIGHT   PB3
-#define PIN_STICK_CLK_L  PA11
-#define PIN_STICK_CLK_R  PA12
+// 5 Active Digital Pins (Right Stick Click permanently removed)
+#define PIN_TOGGLE_LEFT  PB3
+#define PIN_TOGGLE_RIGHT PB4
+#define PIN_PUSH_LEFT    PA12
+#define PIN_PUSH_RIGHT   PA15
+#define PIN_STICK_CLK_L  PA10
 
 // Actuator Pins
 #define PIN_BUZZER       PB8
@@ -138,7 +135,7 @@ struct __attribute__((packed)) RoverPacket {
   uint8_t  push_l;      // 1 = PRESSED, 0 = RELEASED
   uint8_t  push_r;      // 1 = PRESSED, 0 = RELEASED
   uint8_t  stick_clk_l; // 1 = PRESSED, 0 = UP
-  uint8_t  stick_clk_r; // 1 = PRESSED, 0 = UP
+  uint8_t  stick_clk_r; // 0 = DISABLED (Click switch removed)
   uint32_t frame_id;    // Rolling frame sequence counter
 };
 
@@ -147,7 +144,7 @@ RF24 radio(PIN_NRF_CE, PIN_NRF_CSN);
 bool radioReady = false;
 
 // =============================================================================
-//  DIGITAL CONTROL TRACKING
+//  DIGITAL CONTROL TRACKING (5 Active Channels)
 // =============================================================================
 struct DigitalInput {
   uint8_t pin;
@@ -159,12 +156,11 @@ struct DigitalInput {
 };
 
 DigitalInput digInputs[] = {
-  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB4) ", "TL",  true,  LOW,  false},
-  {PIN_TOGGLE_RIGHT, "Toggle Right (PB5) ", "TR",  true,  LOW,  false},
-  {PIN_PUSH_LEFT,    "Push Left    (PA15)", "PL",  false, HIGH, false},
-  {PIN_PUSH_RIGHT,   "Push Right   (PB3) ", "PR",  false, HIGH, false},
-  {PIN_STICK_CLK_L,  "Stick Click L(PA11)", "CKL", false, LOW,  false},
-  {PIN_STICK_CLK_R,  "Stick Click R(PA12)", "CKR", false, LOW,  false}
+  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB3) ", "TL",  true,  LOW,  false},
+  {PIN_TOGGLE_RIGHT, "Toggle Right (PB4) ", "TR",  true,  LOW,  false},
+  {PIN_PUSH_LEFT,    "Push Left    (PA12)", "PL",  false, HIGH, false},
+  {PIN_PUSH_RIGHT,   "Push Right   (PA15)", "PR",  false, HIGH, false},
+  {PIN_STICK_CLK_L,  "Stick Click L(PA10)", "CKL", false, LOW,  false}
 };
 
 const uint8_t NUM_DIG_INPUTS = sizeof(digInputs) / sizeof(digInputs[0]);
@@ -438,27 +434,27 @@ void renderDashboardHUD(char drive_mode, float governor_factor, bool blinker_l, 
   // Moving Arc (fills along speed relative to absolute max)
   float speed_frac = speed_smooth / (float)MAX_SPEED_CMPS;
   if (speed_frac > 1.0f) speed_frac = 1.0f;
-  if (speed_frac < 0.02f) speed_frac = 0.02f; // Minimum resting tick
+  if (speed_frac < 0.03f) speed_frac = 0.03f; // Resting tick at zero
 
   float speed_current_deg = 215.0f - (speed_frac * 180.0f);
   drawThickArc(cx_l, cy_l, r_in_l, r_out_l, speed_current_deg, 215.0f);
 
-  // Governor Limit Tick on outer rim (shows currently dialed max speed cap)
+  // Governor Limit Marker on outer track (shows dialed maximum ceiling)
   float gov_deg = 215.0f - (governor_factor * 180.0f);
   float gov_rad = gov_deg * 0.0174532925f;
   int gx1 = cx_l + (int)(25 * cos(gov_rad) + 0.5f);
   int gy1 = cy_l - (int)(25 * sin(gov_rad) + 0.5f);
-  int gx2 = cx_l + (int)(28 * cos(gov_rad) + 0.5f);
-  int gy2 = cy_l - (int)(28 * sin(gov_rad) + 0.5f);
+  int gx2 = cx_l + (int)(29 * cos(gov_rad) + 0.5f);
+  int gy2 = cy_l - (int)(29 * sin(gov_rad) + 0.5f);
   u8g2.drawLine(gx1, gy1, gx2, gy2);
 
-  // Speed Digital Readout (Logisoso16 Modern Clean Numerals)
+  // Speed Digital Readout (HelvB14 Bold Clean Numerals)
   int display_speed_val = (int)(speed_smooth + 0.5f);
   char speed_str[8];
   itoa(display_speed_val, speed_str, 10);
-  u8g2.setFont(u8g2_font_logisoso16_tn);
+  u8g2.setFont(u8g2_font_helvB14_tr);
   int speed_str_w = u8g2.getStrWidth(speed_str);
-  u8g2.drawStr(cx_l - (speed_str_w / 2), 40, speed_str);
+  u8g2.drawStr(cx_l - (speed_str_w / 2), 38, speed_str);
 
   // Speed Unit Sub-label
   u8g2.setFont(u8g2_font_4x6_tr);
@@ -487,18 +483,18 @@ void renderDashboardHUD(char drive_mode, float governor_factor, bool blinker_l, 
   // Moving Arc
   float rpm_frac = rpm_smooth / (float)MAX_MOTOR_RPM;
   if (rpm_frac > 1.0f) rpm_frac = 1.0f;
-  if (rpm_frac < 0.02f) rpm_frac = 0.02f;
+  if (rpm_frac < 0.03f) rpm_frac = 0.03f;
 
   float rpm_current_deg = -35.0f + (rpm_frac * 180.0f);
   drawThickArc(cx_r, cy_r, r_in_r, r_out_r, -35.0f, rpm_current_deg);
 
-  // RPM Digital Readout
+  // RPM Digital Readout (HelvB14 Bold Clean Numerals)
   int display_rpm_val = (int)(rpm_smooth + 0.5f);
   char rpm_str[8];
   itoa(display_rpm_val, rpm_str, 10);
-  u8g2.setFont(u8g2_font_logisoso16_tn);
+  u8g2.setFont(u8g2_font_helvB14_tr);
   int rpm_str_w = u8g2.getStrWidth(rpm_str);
-  u8g2.drawStr(cx_r - (rpm_str_w / 2), 40, rpm_str);
+  u8g2.drawStr(cx_r - (rpm_str_w / 2), 38, rpm_str);
 
   // RPM Unit Sub-label
   u8g2.setFont(u8g2_font_4x6_tr);
@@ -593,7 +589,7 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
-  // 1. Release JTAG to allow PB4, PB3, PA15 to act as standard digital GPIO
+  // 1. Release JTAG to allow PB3, PB4, PA15 to act as standard digital GPIO
   releaseJTAG();
 
   // 2. Configure 12-bit ADC resolution (0 - 4095)
@@ -616,7 +612,7 @@ void setup() {
   u8g2.drawStr(24, 42, "INITIALIZING...");
   u8g2.sendBuffer();
 
-  // 4. Configure Digital Inputs with internal pull-ups
+  // 4. Configure Digital Inputs with internal pull-ups (5 active channels)
   for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++) {
     pinMode(digInputs[i].pin, INPUT_PULLUP);
     bool raw = digitalRead(digInputs[i].pin);
@@ -633,7 +629,7 @@ void setup() {
   // 6. Initialize NRF24L01 Module
   Serial.println();
   Serial.println(F("================================================================================"));
-  Serial.println(F("  CYBERROVER X5 — 13-CHANNEL REMOTE TRANSMITTER (HUD OS v1.3)                   "));
+  Serial.println(F("  CYBERROVER X5 — 13-CHANNEL REMOTE TRANSMITTER (HUD OS v1.4)                   "));
   Serial.println(F("  Lead Architect: Veer Pratap Saw | Katras, Jharkhand                           "));
   Serial.println(F("================================================================================"));
   Serial.print(F(">>> Initializing NRF24L01+ Radio on SPI1... "));
@@ -661,7 +657,7 @@ void setup() {
   }
 
   Serial.println(F("================================================================================"));
-  Serial.println(F("System Ready! Live transmission & stream running below (115200 baud)...         "));
+  Serial.println(F("System Ready! Clean Raw Telemetry stream running below (115200 baud)...          "));
   Serial.println();
 
   // Trigger Clean Startup Beep (80ms industrial confirmation)
@@ -690,7 +686,7 @@ void loop() {
   updateAlertEngine();
 
   // ====================================================================
-  //  1. CHECK DIGITAL EVENTS (Toggles, Buttons, Gimbal Clicks)
+  //  1. CHECK DIGITAL EVENTS (Toggles, Buttons, Gimbal Click)
   // ====================================================================
   for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++) {
     bool raw = digitalRead(digInputs[i].pin);
@@ -710,11 +706,6 @@ void loop() {
           triggerAlert(ALERT_BUTTON_CLICK);
         }
       }
-
-      Serial.print(F(">>> [EVENT] "));
-      Serial.print(digInputs[i].name);
-      Serial.print(F(" -> "));
-      Serial.println(isCurrentActive ? F("[ ACTIVE / ON  ]") : F("[ IDLE / OFF ]"));
     }
   }
 
@@ -763,13 +754,13 @@ void loop() {
       turboActive = false;
     }
 
-    // Read 6 Digital Channels
+    // Read 5 Digital Channels (Right stick click disabled)
     txPacket.toggle_l    = digInputs[0].state ? 1 : 0;
     txPacket.toggle_r    = digInputs[1].state ? 1 : 0;
     txPacket.push_l      = digInputs[2].state ? 1 : 0;
     txPacket.push_r      = digInputs[3].state ? 1 : 0;
     txPacket.stick_clk_l = digInputs[4].state ? 1 : 0;
-    txPacket.stick_clk_r = digInputs[5].state ? 1 : 0;
+    txPacket.stick_clk_r = 0; // Disabled
 
     txPacket.frame_id    = ++frameCounter;
 
@@ -808,49 +799,56 @@ void loop() {
   float max_governed_speed = MAX_SPEED_CMPS * governor_factor;
   float max_governed_rpm   = MAX_MOTOR_RPM  * governor_factor;
 
-  // Determine Drive Mode & Target Speed/RPM
-  char drive_mode = 'N';
+  // Determine Throttle Deflection (PB0)
+  float throttle_ratio = 0.0f;
+  bool is_forward = false;
+  bool is_reverse = false;
+
+  if (txPacket.stick_ly > (ADC_CENTER + ADC_DEADBAND)) {
+    is_forward = true;
+    throttle_ratio = (float)(txPacket.stick_ly - (ADC_CENTER + ADC_DEADBAND)) / (4095.0f - (ADC_CENTER + ADC_DEADBAND));
+  } else if (txPacket.stick_ly < (ADC_CENTER - ADC_DEADBAND)) {
+    is_reverse = true;
+    throttle_ratio = (float)((ADC_CENTER - ADC_DEADBAND) - txPacket.stick_ly) / (ADC_CENTER - ADC_DEADBAND);
+  }
+  if (throttle_ratio > 1.0f) throttle_ratio = 1.0f;
+
+  // Target Speed & RPM always respond to stick motion and governor ceiling!
   float target_speed = 0.0f;
   float target_rpm   = 0.0f;
 
-  if (!digInputs[0].state) {
-    // Toggle Left is OFF (Disarmed) -> Park Mode 'P'
-    drive_mode = 'P';
-    target_speed = 0.0f;
-    target_rpm   = 0.0f;
-  } else if (digInputs[1].state) {
-    // Toggle Right is ON -> Tank Turn Mode 'T'
-    drive_mode = 'T';
-    float ratio = abs((int)txPacket.stick_ly - ADC_CENTER) / 2048.0f;
-    if (ratio > 1.0f) ratio = 1.0f;
-    target_speed = ratio * (max_governed_speed * 0.70f);
-    target_rpm   = ratio * (max_governed_rpm   * 0.70f);
-  } else if (txPacket.stick_ly > (ADC_CENTER + ADC_DEADBAND)) {
-    // Forward -> Drive Mode 'D'
-    drive_mode = 'D';
-    float ratio = (float)(txPacket.stick_ly - (ADC_CENTER + ADC_DEADBAND)) / (4095.0f - (ADC_CENTER + ADC_DEADBAND));
-    if (ratio > 1.0f) ratio = 1.0f;
-    target_speed = ratio * max_governed_speed;
-    target_rpm   = ratio * max_governed_rpm;
-  } else if (txPacket.stick_ly < (ADC_CENTER - ADC_DEADBAND)) {
-    // Reverse -> Reverse Mode 'R'
-    drive_mode = 'R';
-    float ratio = (float)((ADC_CENTER - ADC_DEADBAND) - txPacket.stick_ly) / (ADC_CENTER - ADC_DEADBAND);
-    if (ratio > 1.0f) ratio = 1.0f;
-    target_speed = ratio * (max_governed_speed * 0.75f);
-    target_rpm   = ratio * (max_governed_rpm   * 0.75f);
+  if (is_forward) {
+    target_speed = throttle_ratio * max_governed_speed;
+    target_rpm   = throttle_ratio * max_governed_rpm;
+  } else if (is_reverse) {
+    target_speed = throttle_ratio * (max_governed_speed * 0.75f);
+    target_rpm   = throttle_ratio * (max_governed_rpm   * 0.75f);
   } else {
-    // Centered inside deadband -> Neutral 'N'
-    drive_mode = 'N';
     target_speed = 0.0f;
     target_rpm   = 0.0f;
+  }
+
+  // Determine Drive Mode:
+  // digInputs[0] is Toggle Left (PB3, Armed Switch)
+  // digInputs[1] is Toggle Right (PB4, Tank Mode Switch)
+  char drive_mode = 'N';
+  if (!digInputs[0].state) {
+    drive_mode = 'P'; // Disarmed / Park Mode
+  } else if (digInputs[1].state) {
+    drive_mode = 'T'; // Tank Turn Mode
+  } else if (is_forward) {
+    drive_mode = 'D'; // Drive Forward
+  } else if (is_reverse) {
+    drive_mode = 'R'; // Reverse
+  } else {
+    drive_mode = 'N'; // Neutral
   }
 
   // Smooth Speed & RPM with Exponential Moving Average (EMA)
   speed_smooth += (target_speed - speed_smooth) * 0.22f;
   rpm_smooth   += (target_rpm   - rpm_smooth)   * 0.22f;
 
-  // Steering Blinkers
+  // Steering Blinkers (PB1)
   bool blinker_l = (txPacket.stick_lx < (ADC_CENTER - 500));
   bool blinker_r = (txPacket.stick_lx > (ADC_CENTER + 500));
   bool blink_state = ((now / 250) % 2 == 0); // 2 Hz flash cadence
@@ -864,40 +862,45 @@ void loop() {
   }
 
   // ====================================================================
-  //  5. PERIODIC LIVE TELEMETRY STREAM (Every 100ms = 10 Hz)
+  //  5. PERIODIC LIVE RAW TELEMETRY STREAM (Every 100ms = 10 Hz)
   // ====================================================================
   if (now - lastPrintTime >= 100) {
     lastPrintTime = now;
 
-    Serial.print(F("[FRM #"));
+    // Frame sequence and RF Link status
+    Serial.print(F("[FRM:"));
     Serial.print(txPacket.frame_id);
-    Serial.print(F(" | RF:"));
-    if (radioReady) {
-      Serial.print(lastTxAck ? F("ACK_OK") : F("TX_NO_ACK"));
-    } else {
-      Serial.print(F("OFFLINE"));
-    }
+    Serial.print(F("|"));
+    Serial.print(radioReady ? (lastTxAck ? F("ACK_OK") : F("NO_ACK")) : F("OFFLINE"));
     Serial.print(F("] "));
 
-    Serial.print(F("MODE:"));
-    Serial.print(drive_mode);
-    Serial.print(F(" | SPD:"));
-    Serial.print((int)speed_smooth);
-    Serial.print(F("/"));
-    Serial.print((int)max_governed_speed);
-    Serial.print(F(" cm/s | RPM:"));
-    Serial.print((int)rpm_smooth);
-    Serial.print(F(" | GOV:"));
-    Serial.print((int)(governor_factor * 100));
-    Serial.print(F("%"));
+    // 4 Joystick Channels (Raw 12-bit: 0 - 4095)
+    Serial.print(F("LX:"));
+    Serial.print(txPacket.stick_lx);
+    Serial.print(F(" LY:"));
+    Serial.print(txPacket.stick_ly);
+    Serial.print(F(" RX:"));
+    Serial.print(txPacket.stick_rx);
+    Serial.print(F(" RY:"));
+    Serial.print(txPacket.stick_ry);
 
-    Serial.print(F(" || POTS: [L:"));
+    // 3 Potentiometer Channels (Raw 12-bit: 0 - 4095)
+    Serial.print(F(" | POT[L:"));
     Serial.print(txPacket.pot_l);
     Serial.print(F(" C:"));
     Serial.print(txPacket.pot_c);
     Serial.print(F(" R:"));
     Serial.print(txPacket.pot_r);
     Serial.print(F("]"));
+
+    // 5 Digital Channels (1 = Active/ON, 0 = Idle/OFF)
+    Serial.print(F(" | DIG:"));
+    for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++) {
+      Serial.print(F(" "));
+      Serial.print(digInputs[i].tag);
+      Serial.print(F(":"));
+      Serial.print(digInputs[i].state ? 1 : 0);
+    }
 
     Serial.println();
   }
