@@ -312,8 +312,24 @@ Step 2.10: 6-Pin Digital Jumper Block Physical Shift (Firmware v1.4.3): [COMPLET
     * PA10 -> Left Gimbal Push Click (Normally Open contact, Active-LOW)
   - Diagnostic Telemetry Stream:
     * Serial monitor streams both debounced state and live pin voltage reading:
-      `DIG: TL:n(r:n) TR:n(r:n) PL:n(r:n) PR:n(r:n) CKL:n(r:n)`
-  - Verified Compilation via native STM32 arduino-cli: 50,412 bytes Flash (76%), 3,160 bytes SRAM (15%). 0 Errors, 0 Warnings. Commit: 0ef5905.
+Step 2.11: 13-Channel Full RF Transmission with PA8 Push Left & PA11 Right Click (Firmware v1.4.4): [COMPLETED & VERIFIED 100%]
+  - Physical Wiring Validated by Veer:
+    * Short circuits cleared and gimbal click switches operational on both sticks.
+    * Push Left wired to dedicated GPIO PA8 (TIM1_CH1, 5V-tolerant, zero USB conflict).
+    * Push Right wired to PA15 (JTAG remap).
+    * Toggle Left wired to PB3 (Master Arm/Disarm: 'P' = Disarmed, 'D' = Armed).
+    * Toggle Right wired to PB4 (Free for Lights / Aux).
+    * Left Gimbal Click wired to PA10 (Active-LOW NO switch).
+    * Right Gimbal Click wired to PA11 (Active-LOW NO switch).
+  - 13 Channels Transmitted in 24-Byte RoverPacket at 40 Hz:
+    * 7 Analog: stick_lx (PB1), stick_ly (PB0), stick_rx (PA4-inv), stick_ry (PA3), pot_l (PA0), pot_c (PA1), pot_r (PA2).
+    * 6 Digital: toggle_l (PB3), toggle_r (PB4), push_l (PA8), push_r (PA15), stick_clk_l (PA10), stick_clk_r (PA11).
+  - Paired Receiver Verification:
+    * firmware/cyberrover_x5_rover_rx/cyberrover_x5_rover_rx.ino receives and unpacks all 13 channels in real time, streaming `SW: [TL:n TR:n PL:n PR:n CKL:n CKR:n]`.
+  - Compilation Benchmarks via native STM32 arduino-cli:
+    * Transmitter (TX): 50,460 bytes Flash (76%), 3,176 bytes SRAM (15%). 0 Errors, 0 Warnings.
+    * Receiver (RX): 18,616 bytes Flash (28%), 1,472 bytes SRAM (7%). 0 Errors, 0 Warnings.
+    * Commit: 4858537.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)
