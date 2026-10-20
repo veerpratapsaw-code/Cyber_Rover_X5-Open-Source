@@ -33,11 +33,11 @@
  *     7. PA2  ---> Pot Right       (ADC2) [Auxiliary / Battery Sim]
  *
  *   DIGITAL (5 Active Channels - Right Stick Click Removed):
- *     1. PB3  ---> Toggle Left     (Active-LOW  : LOW = ON,  HIGH = OFF)
- *     2. PB4  ---> Toggle Right    (Active-LOW  : LOW = ON,  HIGH = OFF)
- *     3. PA12 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
- *     4. PA15 ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
- *     5. PA10 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
+ *     1. PB4  ---> Toggle Left     (Active-LOW  : LOW = ON/ARM,  HIGH = OFF/PARK)
+ *     2. PB5  ---> Toggle Right    (Active-LOW  : LOW = ON,  HIGH = OFF) [Free for Lights/Aux]
+ *     3. PA15 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     4. PB3  ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     5. PA11 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
  *
  *   I2C OLED DISPLAY (1.3" SH1106 / 0.96" SSD1306):
  *     - PB6   ---> SCL (Hardware I2C1 Clock @ 400 kHz)
@@ -95,11 +95,11 @@
 #define PIN_POT_RIGHT   PA2
 
 // 5 Active Digital Pins (Right Stick Click permanently removed)
-#define PIN_TOGGLE_LEFT  PB3
-#define PIN_TOGGLE_RIGHT PB4
-#define PIN_PUSH_LEFT    PA12
-#define PIN_PUSH_RIGHT   PA15
-#define PIN_STICK_CLK_L  PA10
+#define PIN_TOGGLE_LEFT  PB4
+#define PIN_TOGGLE_RIGHT PB5
+#define PIN_PUSH_LEFT    PA15
+#define PIN_PUSH_RIGHT   PB3
+#define PIN_STICK_CLK_L  PA11
 
 // Actuator Pins
 #define PIN_BUZZER       PB8
@@ -156,11 +156,11 @@ struct DigitalInput {
 };
 
 DigitalInput digInputs[] = {
-  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB3) ", "TL",  true,  LOW,  false},
-  {PIN_TOGGLE_RIGHT, "Toggle Right (PB4) ", "TR",  true,  LOW,  false},
-  {PIN_PUSH_LEFT,    "Push Left    (PA12)", "PL",  false, HIGH, false},
-  {PIN_PUSH_RIGHT,   "Push Right   (PA15)", "PR",  false, HIGH, false},
-  {PIN_STICK_CLK_L,  "Stick Click L(PA10)", "CKL", false, LOW,  false}
+  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB4) ", "TL",  true,  LOW,  false},
+  {PIN_TOGGLE_RIGHT, "Toggle Right (PB5) ", "TR",  true,  LOW,  false},
+  {PIN_PUSH_LEFT,    "Push Left    (PA15)", "PL",  false, HIGH, false},
+  {PIN_PUSH_RIGHT,   "Push Right   (PB3) ", "PR",  false, HIGH, false},
+  {PIN_STICK_CLK_L,  "Stick Click L(PA11)", "CKL", false, LOW,  false}
 };
 
 const uint8_t NUM_DIG_INPUTS = sizeof(digInputs) / sizeof(digInputs[0]);
@@ -184,16 +184,6 @@ PotTracker potTrackers[3] = {
 //  BITMAPPED GRAPHICS ASSETS (UPiR CLUSTER HUD)
 // =============================================================================
 
-// Left Turn Blinker Arrow (8x7 px)
-static const unsigned char PROGMEM bitmap_arrow_left[] = {
-  0x10, 0x30, 0x70, 0xFF, 0x70, 0x30, 0x10
-};
-
-// Right Turn Blinker Arrow (8x7 px)
-static const unsigned char PROGMEM bitmap_arrow_right[] = {
-  0x08, 0x0C, 0x0E, 0xFF, 0x0E, 0x0C, 0x08
-};
-
 // Coolant / Engine Temperature Thermometer Icon (9x9 px)
 static const unsigned char PROGMEM bitmap_temp_icon[] = {
   0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0x38, 0x00, 0x38, 0x00,
@@ -203,11 +193,6 @@ static const unsigned char PROGMEM bitmap_temp_icon[] = {
 // Gas Pump / Fuel Icon (8x8 px)
 static const unsigned char PROGMEM bitmap_fuel_icon[] = {
   0x70, 0x5A, 0x7A, 0x5E, 0x52, 0x72, 0x70, 0xFE
-};
-
-// Authentic UPiR Logo Watermark (16x4 px)
-static const unsigned char PROGMEM bitmap_upir_logo[] = {
-  0x15, 0xD7, 0x15, 0x45, 0x15, 0x96, 0x19, 0x15
 };
 
 // =============================================================================
@@ -416,7 +401,7 @@ void drawDialTrack(int cx, int cy, int r_track, float start_deg, float end_deg) 
 }
 
 // Renders the complete Page 1 Virtual Cockpit HUD
-void renderDashboardHUD(char drive_mode, float governor_factor, bool blinker_l, bool blinker_r, bool blink_state, bool rf_connected) {
+void renderDashboardHUD(char drive_mode, float governor_factor, uint16_t pot_c, uint16_t pot_r, bool blinker_l, bool blinker_r, bool blink_state, bool rf_connected) {
   u8g2.clearBuffer();
 
   // ---------------------------------------------------------------------------
@@ -460,9 +445,9 @@ void renderDashboardHUD(char drive_mode, float governor_factor, bool blinker_l, 
   u8g2.setFont(u8g2_font_4x6_tr);
   u8g2.drawStr(cx_l - 8, 48, "CM/S");
 
-  // Left Blinker Arrow
+  // Left Blinker Arrow (◄ pointing strictly LEFT)
   if (blinker_l && blink_state) {
-    u8g2.drawXBMP(4, 3, 8, 7, bitmap_arrow_left);
+    u8g2.drawTriangle(4, 6, 11, 2, 11, 10);
   } else {
     u8g2.drawPixel(4, 6);
     u8g2.drawPixel(11, 6);
@@ -500,9 +485,9 @@ void renderDashboardHUD(char drive_mode, float governor_factor, bool blinker_l, 
   u8g2.setFont(u8g2_font_4x6_tr);
   u8g2.drawStr(cx_r - 6, 48, "RPM");
 
-  // Right Blinker Arrow
+  // Right Blinker Arrow (► pointing strictly RIGHT)
   if (blinker_r && blink_state) {
-    u8g2.drawXBMP(116, 3, 8, 7, bitmap_arrow_right);
+    u8g2.drawTriangle(123, 6, 116, 2, 116, 10);
   } else {
     u8g2.drawPixel(116, 6);
     u8g2.drawPixel(123, 6);
@@ -575,8 +560,26 @@ void renderDashboardHUD(char drive_mode, float governor_factor, bool blinker_l, 
     u8g2.drawLine(fx1, fy1, fx2, fy2);
   }
 
-  // D. Authentic UPiR / X5 Logo Watermark
-  u8g2.drawXBMP(110, 58, 16, 4, bitmap_upir_logo);
+  // ---------------------------------------------------------------------------
+  // 4. LOWER CORNER BARS: POT CENTER & POT RIGHT INDICATORS
+  // ---------------------------------------------------------------------------
+  // Bottom-Left Bar: Pot Center (PA1, Camera Tilt Trim) -> Fills from Left (x=2) towards Center (x=38)
+  u8g2.drawHLine(2, 63, 37);
+  u8g2.drawVLine(38, 61, 3);
+  int fill_c = (int)(((float)pot_c / 4095.0f) * 36.0f + 0.5f);
+  if (fill_c > 36) fill_c = 36;
+  if (fill_c > 0) {
+    u8g2.drawBox(2, 61, fill_c, 2);
+  }
+
+  // Bottom-Right Bar: Pot Right (PA2, Aux / Telemetry) -> Fills from Right (x=125) towards Center (x=89)
+  u8g2.drawHLine(89, 63, 37);
+  u8g2.drawVLine(89, 61, 3);
+  int fill_r = (int)(((float)pot_r / 4095.0f) * 36.0f + 0.5f);
+  if (fill_r > 36) fill_r = 36;
+  if (fill_r > 0) {
+    u8g2.drawBox(126 - fill_r, 61, fill_r, 2);
+  }
 
   // Send Framebuffer to Glass
   u8g2.sendBuffer();
@@ -834,28 +837,26 @@ void loop() {
   }
 
   // Determine Drive Mode:
-  // digInputs[0] is Toggle Left (PB3, Armed Switch)
-  // digInputs[1] is Toggle Right (PB4, Tank Mode Switch)
-  char drive_mode = 'N';
+  // digInputs[0] is Toggle Left (PB4, Master Arm/Disarm Switch)
+  // digInputs[1] is Toggle Right (PB5, Free for Lights / Aux)
+  char drive_mode = 'P';
   if (!digInputs[0].state) {
-    drive_mode = 'P'; // Disarmed / Park Mode
-  } else if (digInputs[1].state) {
-    drive_mode = 'T'; // Tank Turn Mode
-  } else if (is_forward) {
-    drive_mode = 'D'; // Drive Forward
+    drive_mode = 'P'; // Disarmed / Park Mode ('P')
   } else if (is_reverse) {
-    drive_mode = 'R'; // Reverse
+    drive_mode = 'R'; // Reverse Mode ('R')
   } else {
-    drive_mode = 'N'; // Neutral
+    drive_mode = 'D'; // Drive Mode Armed ('D')
   }
 
   // Smooth Speed & RPM with Exponential Moving Average (EMA)
   speed_smooth += (target_speed - speed_smooth) * 0.22f;
   rpm_smooth   += (target_rpm   - rpm_smooth)   * 0.22f;
 
-  // Steering Blinkers (PB1)
-  bool blinker_l = (txPacket.stick_lx < (ADC_CENTER - 500));
-  bool blinker_r = (txPacket.stick_lx > (ADC_CENTER + 500));
+  // Steering Blinkers (PB1):
+  // Pushing Stick Left -> triggers Left Arrow (◄) on Left side
+  // Pushing Stick Right -> triggers Right Arrow (►) on Right side
+  bool blinker_l = (txPacket.stick_lx > (ADC_CENTER + 500));
+  bool blinker_r = (txPacket.stick_lx < (ADC_CENTER - 500));
   bool blink_state = ((now / 250) % 2 == 0); // 2 Hz flash cadence
 
   // ====================================================================
@@ -863,7 +864,7 @@ void loop() {
   // ====================================================================
   if (now - lastOledTime >= 40) {
     lastOledTime = now;
-    renderDashboardHUD(drive_mode, governor_factor, blinker_l, blinker_r, blink_state, wasLinkConnected && lastTxAck);
+    renderDashboardHUD(drive_mode, governor_factor, txPacket.pot_c, txPacket.pot_r, blinker_l, blinker_r, blink_state, wasLinkConnected && lastTxAck);
   }
 
   // ====================================================================
