@@ -804,14 +804,19 @@ void loop() {
   bool is_forward = false;
   bool is_reverse = false;
 
-  if (txPacket.stick_ly > (ADC_CENTER + ADC_DEADBAND)) {
+  const int deadband_high = ADC_CENTER + ADC_DEADBAND; // 2188
+  const int deadband_low  = ADC_CENTER - ADC_DEADBAND; // 1908
+  const int joy_margin    = 80; // Margin to guarantee reaching 100% at physical mechanical stops
+
+  if (txPacket.stick_ly > deadband_high) {
     is_forward = true;
-    throttle_ratio = (float)(txPacket.stick_ly - (ADC_CENTER + ADC_DEADBAND)) / (4095.0f - (ADC_CENTER + ADC_DEADBAND));
-  } else if (txPacket.stick_ly < (ADC_CENTER - ADC_DEADBAND)) {
+    throttle_ratio = (float)(txPacket.stick_ly - deadband_high) / ((4095 - joy_margin) - deadband_high);
+  } else if (txPacket.stick_ly < deadband_low) {
     is_reverse = true;
-    throttle_ratio = (float)((ADC_CENTER - ADC_DEADBAND) - txPacket.stick_ly) / (ADC_CENTER - ADC_DEADBAND);
+    throttle_ratio = (float)(deadband_low - txPacket.stick_ly) / (deadband_low - joy_margin);
   }
   if (throttle_ratio > 1.0f) throttle_ratio = 1.0f;
+  if (throttle_ratio < 0.0f) throttle_ratio = 0.0f;
 
   // Target Speed & RPM always respond to stick motion and governor ceiling!
   float target_speed = 0.0f;
@@ -821,8 +826,8 @@ void loop() {
     target_speed = throttle_ratio * max_governed_speed;
     target_rpm   = throttle_ratio * max_governed_rpm;
   } else if (is_reverse) {
-    target_speed = throttle_ratio * (max_governed_speed * 0.75f);
-    target_rpm   = throttle_ratio * (max_governed_rpm   * 0.75f);
+    target_speed = throttle_ratio * max_governed_speed; // Symmetrical full speed in reverse (100% sprint capable)
+    target_rpm   = throttle_ratio * max_governed_rpm;
   } else {
     target_speed = 0.0f;
     target_rpm   = 0.0f;

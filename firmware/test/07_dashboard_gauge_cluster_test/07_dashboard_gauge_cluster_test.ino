@@ -241,20 +241,26 @@ void loop() {
   float target_rpm   = 0.0f;
   char  drive_mode   = 'N'; // N = Neutral, D = Drive, R = Reverse
 
-  if (raw_ly > (ADC_CENTER + ADC_DEADBAND)) {
+  const int deadband_high = ADC_CENTER + ADC_DEADBAND; // 2188
+  const int deadband_low  = ADC_CENTER - ADC_DEADBAND; // 1908
+  const int joy_margin    = 80;
+
+  if (raw_ly > deadband_high) {
     // Pushing FORWARD -> Drive Mode 'D'
     drive_mode = 'D';
-    float ratio = (float)(raw_ly - (ADC_CENTER + ADC_DEADBAND)) / (4095.0f - (ADC_CENTER + ADC_DEADBAND));
+    float ratio = (float)(raw_ly - deadband_high) / ((4095 - joy_margin) - deadband_high);
     if (ratio > 1.0f) ratio = 1.0f;
+    if (ratio < 0.0f) ratio = 0.0f;
     target_speed = ratio * MAX_SPEED_CMPS;
     target_rpm   = ratio * MAX_MOTOR_RPM;
-  } else if (raw_ly < (ADC_CENTER - ADC_DEADBAND)) {
+  } else if (raw_ly < deadband_low) {
     // Pulling REVERSE -> Reverse Mode 'R'
     drive_mode = 'R';
-    float ratio = (float)((ADC_CENTER - ADC_DEADBAND) - raw_ly) / (ADC_CENTER - ADC_DEADBAND);
+    float ratio = (float)(deadband_low - raw_ly) / (deadband_low - joy_margin);
     if (ratio > 1.0f) ratio = 1.0f;
-    target_speed = ratio * (MAX_SPEED_CMPS * 0.75f); // Reverse speed capped at 75%
-    target_rpm   = ratio * (MAX_MOTOR_RPM * 0.75f);
+    if (ratio < 0.0f) ratio = 0.0f;
+    target_speed = ratio * MAX_SPEED_CMPS; // Full symmetrical sprint speed in reverse
+    target_rpm   = ratio * MAX_MOTOR_RPM;
   } else {
     // Inside Deadband -> Neutral 'N'
     drive_mode = 'N';
