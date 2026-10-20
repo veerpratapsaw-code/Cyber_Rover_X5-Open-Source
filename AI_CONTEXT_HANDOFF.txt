@@ -281,6 +281,23 @@ Step 2.8: Reverse Speed Limiter Removal & Mechanical Margin Calibration (Firmwar
     * Added an 80-count mechanical end-stop margin (`joy_margin = 80`) to both forward and reverse throttle calculations. This guarantees that physical gimbal travel limits (which often stop at 50-80 counts before hitting pure 0 or 4095) still reach 100% (throttle_ratio = 1.0f) with zero lag.
   - Symmetrically updated firmware/cyberrover_x5_remote_tx/cyberrover_x5_remote_tx.ino and firmware/test/07_dashboard_gauge_cluster_test/07_dashboard_gauge_cluster_test.ino.
   - Verified Compilation via native STM32 arduino-cli: 49,468 bytes Flash (75%), 3,084 bytes SRAM (15%). 0 Errors, 0 Warnings. Commit: c794694.
+Step 2.9: HUD Vector Arrows, Dual Corner Pot Bars, Drive Mode Arming, and Push Left Pin Fix (Firmware v1.4.2): [COMPLETED & VERIFIED 100%]
+  - Left & Right Turn Blinkers:
+    * Replaced inverted XBM bitmaps with clean filled vector triangles (u8g2.drawTriangle).
+    * Left Arrow strictly points LEFT (◄) and blinks on Left stick deflection (PB1 > 2548).
+    * Right Arrow strictly points RIGHT (►) and blinks on Right stick deflection (PB1 < 1548).
+  - Watermark Replacement:
+    * Excised static UPiR logo bitmap to free flash memory.
+    * Integrated dual 2-pixel wide horizontal pot work bars at the bottom corners:
+      - Bottom-Left Bar: Pot Center (PA1, Camera Tilt) filling from outer left edge (x=2) toward center (x=38).
+      - Bottom-Right Bar: Pot Right (PA2, Aux/Telemetry) filling from outer right edge (x=125) toward center (x=89).
+  - Drive Mode Decoupling:
+    * Toggle Left (PB4) controls Master Arm/Disarm (:P for Park when disarmed, :D for Drive when armed, :R for Reverse).
+    * Toggle Right (PB5) completely decoupled from drive mode (freed for vehicle headlights/searchlight).
+  - Push Left Button Hardware Pin Fix:
+    * Identified why Left Push Button was not working: PIN_PUSH_LEFT was incorrectly defined as PA12 (the decommissioned broken right gimbal click).
+    * Restored verified Stage 3 hardware pin definitions: PIN_PUSH_LEFT -> PA15 (Active-HIGH NC button), PIN_PUSH_RIGHT -> PB3, PIN_TOGGLE_LEFT -> PB4, PIN_TOGGLE_RIGHT -> PB5, PIN_STICK_CLK_L -> PA11.
+  - Verified Compilation via native STM32 arduino-cli: 50,376 bytes Flash (76%), 3,160 bytes SRAM (15%). 0 Errors, 0 Warnings. Commit: c0f8ebf.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)
