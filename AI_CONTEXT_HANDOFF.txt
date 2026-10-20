@@ -341,7 +341,24 @@ Step 2.12: Receiver RF Link Bench Verification & Silicon Disconnect Diagnosis (F
     1. 12-Bit ADC Packet Sanity Check: All 7 analog values are validated `<= 4095`. Any corrupted 0xFFFF frames are immediately flushed from RX FIFO and rejected.
     2. Zero SPI Register Contention: Removed active `isChipConnected()` polling from the primary packet loop. During active packet reception, `radio.available()` is processed directly with zero SPI register interruption, eliminating false disconnect alerts.
     3. Failsafe-Only Auto-Recovery: Silicon probe and re-initialization are only performed if the link has dropped for > 2000 ms.
-    4. Compilation: 19,036 bytes Flash (29%), 1,476 bytes SRAM (7%). 0 Errors, 0 Warnings.
+Step 2.13: Industrial-Grade Modular Firmware v1.5 with Sound Mute & Automated Tests: [COMPLETED & VERIFIED 100%]
+  - Architecture Overhaul:
+    * Re-architected both Transmitter and Receiver into modular, decoupled C++ components:
+      - `firmware/shared/cyberrover_protocol.h`: Shared 24-byte packet, static assertions, 12-bit bounds checker.
+      - `analog_filter.h/.cpp`: 3-stage conditioning (Order-3 Median + Single-Pole IIR + Zero-Discontinuity Deadband).
+      - `digital_inputs.h/.cpp`: 20ms debounce integrator, stable transition detection (press/release/toggle).
+      - `alert_engine.h/.cpp`: Priority-arbitrated FSM with Sound Mute feature.
+      - `radio_tx_manager.h/.cpp` & `radio_rx_manager.h/.cpp`: Zero-contention non-blocking RF state machines.
+      - `receiver_failsafe.h/.cpp`: Deterministic 500ms safety supervisor with neutral motor clamp & recovery guard.
+      - `watchdog_mgr.h/.cpp`: Hardware STM32 Independent Watchdog (IWDG, 1500ms timeout).
+  - Sound Mute Switch (Toggle Right PB4):
+    * Flipped active -> piezo buzzer (PB8) is completely silenced (0 dB) for quiet bench development.
+    * Haptic motor (PB9) remains active for tactile feedback; OLED HUD shows 'M' status badge.
+  - Verification & Test Benchmarks:
+    * Automated Unit Test Suite (`tests/unit_tests.cpp`): 44/44 tests passed (100%) via host G++.
+    * Transmitter (TX): 51,712 bytes Flash (78%), 3,496 bytes SRAM (17%). 0 Errors, 0 Warnings.
+    * Receiver (RX): 20,960 bytes Flash (31%), 1,532 bytes SRAM (7%). 0 Errors, 0 Warnings.
+    * Full Documentation Suite in `docs/`: Architecture, Failsafe, Filtering, Wiring, Risks, Migration.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)

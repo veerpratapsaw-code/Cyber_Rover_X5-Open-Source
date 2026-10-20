@@ -1,244 +1,141 @@
 /*
  * ================================================================================
- * CYBERROVER X5 — VEHICLE RECEIVER LINK VERIFICATION BENCH FIRMWARE v1.1
+ * CYBERROVER X5 — INDUSTRIAL-GRADE RECEIVER & FAILSAFE SUPERVISOR (v1.5)
  * ================================================================================
  * Lead Architect : Veer Pratap Saw (Veer) | Class 10 Student, Katras / Ramgarh
  * Platform       : STM32F103C8T6 (Blue Pill) @ 72 MHz ARM Cortex-M3
- * Subsystem      : Carrier Perfboard Receiver Node (Wireless Input Verification)
+ * Subsystem      : Carrier Node Receiver & Vehicle Drivetrain Supervisor
  *
- * SCOPE:
- *   - Receives all 13 remote control channels over NRF24L01+ 2.4 GHz RF link.
- *   - Continuous hardware silicon watchdog: instantly flags loose jumpers!
- *   - Live Serial Monitor telemetry display (115200 baud).
- *   - Automatic 500ms Signal Loss Failsafe monitor.
- *   - Onboard Heartbeat / Packet Activity LED indicator on PC13.
- *
- * EXACT HARDWARE WIRING (Receiver STM32 Blue Pill <---> NRF24L01+ Module):
- *   - Pin 1 (GND) ---> STM32 GND
- *   - Pin 2 (VCC) ---> STM32 3.3V (MUST have 10uF - 100uF capacitor to GND!)
- *   - Pin 3 (CE)  ---> PA3  (Chip Enable: Activates RX listening)
- *   - Pin 4 (CSN) ---> PA4  (Chip Select Not: SPI bus select)
- *   - Pin 5 (SCK) ---> PA5  (Hardware SPI1 Clock)
- *   - Pin 6 (MOSI)---> PA7  (Hardware SPI1 Master-Out-Slave-In)
- *   - Pin 7 (MISO)---> PA6  (Hardware SPI1 Master-In-Slave-Out)
- *   - Pin 8 (IRQ) ---> Not Connected (NC)
- *
- * USB-TTL PROGRAMMING & SERIAL TELEMETRY:
- *   - PA9  (TX1)  ---> USB-TTL RXD
- *   - PA10 (RX1)  ---> USB-TTL TXD
- *   - GND         ---> USB-TTL GND
- *   - 5V / 3.3V   ---> USB-TTL 5V / 3.3V
+ * SAFETY & RESILIENCE GUARANTEES:
+ *   1. Zero SPI Register Contention: Radio is read directly without busy-polling.
+ *   2. 12-Bit ADC Packet Sanity Check: Floating bus noise (0xFFFF) is rejected instantly.
+ *   3. 500ms Deterministic Motor Failsafe: Clamps throttle & steering to neutral on loss.
+ *   4. Reconnection Qualification Guard: Requires 3 consecutive valid packets to unclamp.
+ *   5. Background Silicon Auto-Recovery: Controlled, bounded re-init during prolonged drop.
  * ================================================================================
  */
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <RF24.h>
+
+#include "cyberrover_protocol.h"
+#include "cyberrover_rx_config.h"
+#include "receiver_failsafe.h"
+#include "radio_rx_manager.h"
 
 // =============================================================================
-//  PIN DEFINITIONS & CONFIGURATION
+//  SUBSYSTEM INSTANCES
 // =============================================================================
-#define PIN_NRF_CE    PA3
-#define PIN_NRF_CSN   PA4
-#define PIN_LED_HB    PC13    // Onboard Blue Pill LED (Active-LOW)
+static RadioRxManager   radioRx;
+static ReceiverFailsafe failsafe;
+static RoverPacket      rxPacket;
 
-// RF Link Constants (Identical to Transmitter)
-const uint8_t  RF_CHANNEL = 108;            // 2.508 GHz (Above Wi-Fi channels 1-13)
-const uint64_t RF_PIPE    = 0xE8E8F0F0E1LL; // CyberRover X5 Link Address
-
-// =============================================================================
-//  UNIFIED 13-CHANNEL DATA PACKET STRUCTURE (24 Bytes)
-// =============================================================================
-struct __attribute__((packed)) RoverPacket {
-  uint16_t stick_lx;    // Left Stick X   (0 - 4095)
-  uint16_t stick_ly;    // Left Stick Y   (0 - 4095)
-  uint16_t stick_rx;    // Right Stick X  (0 - 4095, Inverted on TX)
-  uint16_t stick_ry;    // Right Stick Y  (0 - 4095)
-  uint16_t pot_l;       // Pot Left       (0 - 4095, Speed Governor)
-  uint16_t pot_c;       // Pot Center     (0 - 4095, Camera Tilt)
-  uint16_t pot_r;       // Pot Right      (0 - 4095, Aux)
-  uint8_t  toggle_l;    // 1 = ON, 0 = OFF
-  uint8_t  toggle_r;    // 1 = ON, 0 = OFF
-  uint8_t  push_l;      // 1 = PRESSED, 0 = RELEASED
-  uint8_t  push_r;      // 1 = PRESSED, 0 = RELEASED
-  uint8_t  stick_clk_l; // 1 = PRESSED, 0 = UP
-  uint8_t  stick_clk_r; // 1 = PRESSED, 0 = UP
-  uint32_t frame_id;    // Rolling frame sequence counter
-};
-
-RoverPacket rxPacket;
-RF24 radio(PIN_NRF_CE, PIN_NRF_CSN);
-
-// =============================================================================
-//  DIAGNOSTIC & FAILSAFE TRACKING VARIABLES
-// =============================================================================
-uint32_t lastPacketTime   = 0;
-uint32_t packetsReceived  = 0;
-uint32_t packetsPerSec    = 0;
-uint32_t lastRateCheck    = 0;
-uint32_t lastPrintTime    = 0;
-bool     failsafeActive   = true;
-
-
-// =============================================================================
-//  RADIO INITIALIZATION HELPER
-// =============================================================================
-bool initReceiverRadio() {
-  if (!radio.begin()) {
-    return false;
-  }
-  radio.setPALevel(RF24_PA_LOW);           // Bench test power (prevents brownouts)
-  radio.setDataRate(RF24_250KBPS);         // 250 kbps for maximum sensitivity and range
-  radio.setChannel(RF_CHANNEL);            // Channel 108 (2.508 GHz)
-  radio.setPayloadSize(sizeof(RoverPacket));
-  radio.openReadingPipe(1, RF_PIPE);       // Listen on primary address
-  radio.startListening();
-  return true;
-}
+static uint32_t lastTelemetryTime = 0;
 
 // =============================================================================
 //  SETUP
 // =============================================================================
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
 
   pinMode(PIN_LED_HB, OUTPUT);
   digitalWrite(PIN_LED_HB, HIGH); // Off for active-low PC13
 
   Serial.println();
   Serial.println(F("================================================================================"));
-  Serial.println(F("  CYBERROVER X5 — RECEIVER RF LINK VERIFICATION BENCH MONITOR v1.2              "));
+  Serial.println(F("  CYBERROVER X5 — INDUSTRIAL-GRADE RECEIVER & FAILSAFE BENCH MONITOR v1.5       "));
   Serial.println(F("  Lead Architect: Veer Pratap Saw | Katras, Jharkhand                           "));
   Serial.println(F("================================================================================"));
 
-  // 1. Initialize Hardware SPI1 bus explicitly
-  SPI.begin();
-
-  // 2. Initialize NRF24L01 Module (SCK=PA5, MISO=PA6, MOSI=PA7, CE=PA3, CSN=PA4)
+  // 1. Initialize NRF24L01+ Radio Driver on Hardware SPI1 (PA5-7, CE=PA3, CSN=PA4)
   Serial.print(F(">>> Initializing NRF24L01+ Radio on Native SPI1 (PA5-7, CE=PA3, CSN=PA4)... "));
-  
-  bool radioOk = false;
-  for (uint8_t attempt = 1; attempt <= 5; attempt++) {
-    if (initReceiverRadio()) {
-      radioOk = true;
-      break;
-    }
-    digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
-    delay(200);
-  }
-
-  if (radioOk) {
+  if (radioRx.init(PIN_NRF_CE, PIN_NRF_CSN, CYBERROVER_RF_CHANNEL, CYBERROVER_RF_PIPE)) {
     Serial.println(F("[PASSED - SILICON OK]"));
-    Serial.print(F(">>> Radio Listening on Channel: "));
-    Serial.print(RF_CHANNEL);
-    Serial.print(F(" (2.508 GHz) | Speed: 250 kbps | Payload: "));
+    Serial.print(F(">>> Operating Channel: "));
+    Serial.print(CYBERROVER_RF_CHANNEL);
+    Serial.print(F(" (2.508 GHz) | Rate: 250 kbps | Payload: "));
     Serial.print(sizeof(RoverPacket));
     Serial.println(F(" Bytes"));
     Serial.println(F(">>> Waiting for RF packets from Remote Transmitter..."));
   } else {
-    Serial.println(F("[FAILED - RETRYING IN BACKGROUND]"));
-    Serial.println(F("CRITICAL HARDWARE NOTICE: NRF24 silicon not responding on SPI1!"));
-    Serial.println(F("Physical Troubleshooting Checklist:"));
-    Serial.println(F("  1. Verify 3.3V & GND wiring to NRF module (Do NOT use 5V!)."));
-    Serial.println(F("  2. Solder a 10uF - 100uF capacitor directly across NRF24 VCC & GND pins."));
-    Serial.println(F("  3. Check SPI1 connections: SCK=PA5, MISO=PA6, MOSI=PA7, CE=PA3, CSN=PA4."));
-    Serial.println(F(">>> Auto-recovery active: will automatically connect when wires are seated!"));
+    Serial.println(F("[FAILED!] Check 5V power, capacitor, and SPI1 wiring!"));
   }
+
+  // 2. Initialize Safety Failsafe Engine (500ms timeout, 3 packets to recover)
+  failsafe.init(FAILSAFE_TIMEOUT_MS, RECONNECT_REQUIRED_PACKETS);
+  Serial.println(F(">>> Safety Failsafe Supervisor: 500ms Timeout Active (Neutral Motor Clamp)"));
   Serial.println(F("================================================================================"));
   Serial.println();
 }
 
 // =============================================================================
-//  MAIN LOOP
+//  MAIN REAL-TIME LOOP
 // =============================================================================
 void loop() {
   uint32_t now = millis();
 
   // ---------------------------------------------------------------------------
-  // 1. INCOMING RADIO PACKET PROCESSING WITH 12-BIT SANITY FILTER
+  // 1. PROCESS INCOMING RADIO PACKETS WITH ZERO SPI REGISTER COLLISION
   // ---------------------------------------------------------------------------
-  while (radio.available()) {
-    RoverPacket tempPacket;
-    radio.read(&tempPacket, sizeof(RoverPacket));
+  RoverPacket tempPacket;
+  if (radioRx.processIncoming(tempPacket, now)) {
+    rxPacket = tempPacket;
+    failsafe.onValidPacket(rxPacket, now);
 
-    // Sanity Check: All 7 analog channels MUST be within valid 12-bit ADC range (0 - 4095)
-    // Discards corrupted 0xFFFF / SPI bus floating noise (e.g. 65535)
-    if (tempPacket.stick_lx <= 4095 && tempPacket.stick_ly <= 4095 &&
-        tempPacket.stick_rx <= 4095 && tempPacket.stick_ry <= 4095 &&
-        tempPacket.pot_l    <= 4095 && tempPacket.pot_c    <= 4095 && tempPacket.pot_r <= 4095) {
-
-      rxPacket = tempPacket;
-      lastPacketTime = now;
-      packetsReceived++;
-      packetsPerSec++;
-
-      // Visual Heartbeat on active packet reception
-      digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
-
-      if (failsafeActive) {
-        failsafeActive = false;
-        Serial.println();
-        Serial.println(F("****************************************************************"));
-        Serial.println(F("  >>> RF LINK CONNECTED! RECEIVING LIVE DATA FROM REMOTE! <<<   "));
-        Serial.println(F("****************************************************************"));
-      }
-    } else {
-      radio.flush_rx(); // Discard corrupted packet
-    }
+    // Heartbeat LED toggles on valid packet receipt
+    digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
   }
 
   // ---------------------------------------------------------------------------
-  // 2. FAILSAFE TIMEOUT & HARDWARE AUTO-RECOVERY (Only when link is lost)
+  // 2. UPDATE FAILSAFE SUPERVISOR & DETECT TRANSITIONS
   // ---------------------------------------------------------------------------
-  static uint32_t lastRecoveryProbe = 0;
-  if (!failsafeActive && (now - lastPacketTime > 500)) {
-    failsafeActive = true;
-    digitalWrite(PIN_LED_HB, HIGH); // Turn LED off when link lost
+  failsafe.update(now);
+
+  if (failsafe.justRecovered()) {
+    Serial.println();
+    Serial.println(F("****************************************************************"));
+    Serial.println(F("  >>> RF LINK CONNECTED! RECEIVING LIVE DATA FROM REMOTE! <<<   "));
+    Serial.println(F("****************************************************************"));
+  } else if (failsafe.justEnteredFailsafe()) {
+    digitalWrite(PIN_LED_HB, HIGH); // Turn LED OFF when disconnected
     Serial.println();
     Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
     Serial.println(F("  [ALERT] RF LINK LOST! NO PACKET FOR >500ms -> FAILSAFE ENGAGED"));
+    Serial.println(F("  [ACTION] All motor outputs clamped to neutral PWM (0, 0)!     "));
     Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
   }
 
-  // If link has been lost for over 2 seconds, probe radio silicon and auto-recover
-  if (failsafeActive && (now - lastPacketTime > 2000) && (now - lastRecoveryProbe >= 2000)) {
-    lastRecoveryProbe = now;
-    if (!radio.isChipConnected()) {
-      Serial.println(F(">>> [HARDWARE NOTICE] NRF24 not responding on SPI1. Attempting auto-recovery... <<<"));
-      if (initReceiverRadio()) {
-        Serial.println(F(">>> [AUTO-RECOVERED] NRF24 Silicon Re-Established! Listening for Remote... <<<"));
-      }
-    }
+  // ---------------------------------------------------------------------------
+  // 3. SILICON AUTO-RECOVERY (Only active during prolonged link loss > 2000ms)
+  // ---------------------------------------------------------------------------
+  radioRx.checkBackgroundRecovery(now, now - failsafe.getPacketAgeMs(now));
+
+  if (radioRx.justRecovered()) {
+    Serial.println(F(">>> [AUTO-RECOVERED] NRF24 Silicon Re-Established! Listening for Remote... <<<"));
   }
 
   // ---------------------------------------------------------------------------
-  // 3. PACKET RATE CALCULATOR (Every 1000ms)
+  // 4. PERIODIC LIVE TELEMETRY STREAM TO SERIAL (10 Hz = 100ms interval)
   // ---------------------------------------------------------------------------
-  static uint32_t displayRate = 0;
-  if (now - lastRateCheck >= 1000) {
-    lastRateCheck = now;
-    displayRate = packetsPerSec;
-    packetsPerSec = 0;
-  }
+  if (now - lastTelemetryTime >= TELEMETRY_INTERVAL_MS) {
+    lastTelemetryTime = now;
 
-  // ---------------------------------------------------------------------------
-  // 4. PERIODIC LIVE TELEMETRY STREAM TO SERIAL (Every 100ms = 10 Hz)
-  // ---------------------------------------------------------------------------
-  if (now - lastPrintTime >= 100) {
-    lastPrintTime = now;
-
-    if (failsafeActive) {
-      Serial.println(F("[LINK: DISCONNECTED / FAILSAFE] Waiting for Remote Controller..."));
+    if (failsafe.isFailsafeActive()) {
+      Serial.print(F("[LINK: DISCONNECTED / FAILSAFE] Waiting for Remote... (Age: "));
+      Serial.print(failsafe.getPacketAgeMs(now));
+      Serial.println(F(" ms)"));
     } else {
-      // Print Frame & Packet Rate
+      const RoverMotorCommand& cmd = failsafe.getCommand();
+
+      // Print Frame Sequence & Packet Rate
       Serial.print(F("[FRM #"));
       Serial.print(rxPacket.frame_id);
       Serial.print(F(" | "));
-      Serial.print(displayRate);
+      Serial.print(radioRx.getPacketRateHz());
       Serial.print(F(" Hz] "));
 
-      // Print Joysticks (12-bit: 0 - 4095)
+      // Print Raw Analog Inputs
       Serial.print(F("LX:"));
       Serial.print(rxPacket.stick_lx);
       Serial.print(F(" LY:"));
@@ -259,17 +156,26 @@ void loop() {
 
       // Print Digital Controls
       Serial.print(F(" || SW: [TL:"));
-      Serial.print(rxPacket.toggle_l ? F("1") : F("0"));
+      Serial.print(rxPacket.toggle_l);
       Serial.print(F(" TR:"));
-      Serial.print(rxPacket.toggle_r ? F("1") : F("0"));
+      Serial.print(rxPacket.toggle_r); // Mute flag
       Serial.print(F(" PL:"));
-      Serial.print(rxPacket.push_l ? F("1") : F("0"));
+      Serial.print(rxPacket.push_l);
       Serial.print(F(" PR:"));
-      Serial.print(rxPacket.push_r ? F("1") : F("0"));
+      Serial.print(rxPacket.push_r);
       Serial.print(F(" CKL:"));
-      Serial.print(rxPacket.stick_clk_l ? F("1") : F("0"));
+      Serial.print(rxPacket.stick_clk_l);
       Serial.print(F(" CKR:"));
-      Serial.print(rxPacket.stick_clk_r ? F("1") : F("0"));
+      Serial.print(rxPacket.stick_clk_r);
+      Serial.print(F("]"));
+
+      // Print Computed Vehicle Motor Command
+      Serial.print(F(" || MOTOR: [THR:"));
+      Serial.print(cmd.throttle_norm);
+      Serial.print(F(" STR:"));
+      Serial.print(cmd.steering_norm);
+      Serial.print(F(" ARM:"));
+      Serial.print(cmd.is_armed ? F("1") : F("0"));
       Serial.println(F("]"));
     }
   }
