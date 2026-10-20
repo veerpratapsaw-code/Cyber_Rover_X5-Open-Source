@@ -32,12 +32,13 @@
  *     6. PA1  ---> Pot Center      (ADC1) [Camera Tilt Trim]
  *     7. PA2  ---> Pot Right       (ADC2) [Auxiliary / Battery Sim]
  *
- *   DIGITAL (5 Active Channels - Right Stick Click Removed):
- *     1. PB4  ---> Toggle Left     (Active-LOW  : LOW = ON/ARM,  HIGH = OFF/PARK)
- *     2. PB5  ---> Toggle Right    (Active-LOW  : LOW = ON,  HIGH = OFF) [Free for Lights/Aux]
- *     3. PA15 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
- *     4. PB3  ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
- *     5. PA11 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
+ *   DIGITAL (5 Active Channels - Shifted 1 pin towards USB side; PB5 is IDLE):
+ *     - PB5   ---> IDLE (Unconnected / Open)
+ *     1. PB3  ---> Toggle Left     (Active-LOW  : LOW = ON/ARM,  HIGH = OFF/PARK)
+ *     2. PB4  ---> Toggle Right    (Active-LOW  : LOW = ON,  HIGH = OFF) [Free for Lights/Aux]
+ *     3. PA12 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     4. PA15 ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     5. PA10 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
  *
  *   I2C OLED DISPLAY (1.3" SH1106 / 0.96" SSD1306):
  *     - PB6   ---> SCL (Hardware I2C1 Clock @ 400 kHz)
@@ -94,12 +95,12 @@
 #define PIN_POT_CENTER  PA1
 #define PIN_POT_RIGHT   PA2
 
-// 5 Active Digital Pins (Right Stick Click permanently removed)
-#define PIN_TOGGLE_LEFT  PB4
-#define PIN_TOGGLE_RIGHT PB5
-#define PIN_PUSH_LEFT    PA15
-#define PIN_PUSH_RIGHT   PB3
-#define PIN_STICK_CLK_L  PA11
+// 5 Active Digital Pins (Shifted 1 pin towards USB side; PB5 is IDLE):
+#define PIN_TOGGLE_LEFT  PB3
+#define PIN_TOGGLE_RIGHT PB4
+#define PIN_PUSH_LEFT    PA12
+#define PIN_PUSH_RIGHT   PA15
+#define PIN_STICK_CLK_L  PA10
 
 // Actuator Pins
 #define PIN_BUZZER       PB8
@@ -156,11 +157,11 @@ struct DigitalInput {
 };
 
 DigitalInput digInputs[] = {
-  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB4) ", "TL",  true,  LOW,  false},
-  {PIN_TOGGLE_RIGHT, "Toggle Right (PB5) ", "TR",  true,  LOW,  false},
-  {PIN_PUSH_LEFT,    "Push Left    (PA15)", "PL",  false, HIGH, false},
-  {PIN_PUSH_RIGHT,   "Push Right   (PB3) ", "PR",  false, HIGH, false},
-  {PIN_STICK_CLK_L,  "Stick Click L(PA11)", "CKL", false, LOW,  false}
+  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB3) ", "TL",  true,  LOW,  false},
+  {PIN_TOGGLE_RIGHT, "Toggle Right (PB4) ", "TR",  true,  LOW,  false},
+  {PIN_PUSH_LEFT,    "Push Left    (PA12)", "PL",  false, HIGH, false},
+  {PIN_PUSH_RIGHT,   "Push Right   (PA15)", "PR",  false, HIGH, false},
+  {PIN_STICK_CLK_L,  "Stick Click L(PA10)", "CKL", false, LOW,  false}
 };
 
 const uint8_t NUM_DIG_INPUTS = sizeof(digInputs) / sizeof(digInputs[0]);
@@ -899,13 +900,16 @@ void loop() {
     Serial.print(txPacket.pot_r);
     Serial.print(F("]"));
 
-    // 5 Digital Channels (1 = Active/ON, 0 = Idle/OFF)
+    // 5 Digital Channels (1 = Active/ON, 0 = Idle/OFF) with live raw pin level (r:0 or r:1)
     Serial.print(F(" | DIG:"));
     for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++) {
       Serial.print(F(" "));
       Serial.print(digInputs[i].tag);
       Serial.print(F(":"));
       Serial.print(digInputs[i].state ? 1 : 0);
+      Serial.print(F("(r:"));
+      Serial.print(digitalRead(digInputs[i].pin));
+      Serial.print(F(")"));
     }
 
     Serial.println();
