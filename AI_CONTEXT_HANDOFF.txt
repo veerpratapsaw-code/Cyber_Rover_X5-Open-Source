@@ -328,8 +328,19 @@ Step 2.11: 13-Channel Full RF Transmission with PA8 Push Left & PA11 Right Click
     * firmware/cyberrover_x5_rover_rx/cyberrover_x5_rover_rx.ino receives and unpacks all 13 channels in real time, streaming `SW: [TL:n TR:n PL:n PR:n CKL:n CKR:n]`.
   - Compilation Benchmarks via native STM32 arduino-cli:
     * Transmitter (TX): 50,460 bytes Flash (76%), 3,176 bytes SRAM (15%). 0 Errors, 0 Warnings.
-    * Receiver (RX): 18,616 bytes Flash (28%), 1,472 bytes SRAM (7%). 0 Errors, 0 Warnings.
+    * Receiver (RX): 19,016 bytes Flash (29%), 1,476 bytes SRAM (7%). 0 Errors, 0 Warnings.
     * Commit: 4858537.
+Step 2.12: Receiver RF Link Bench Verification & Silicon Disconnect Diagnosis (Firmware v1.2): [COMPLETED & VERIFIED]
+  - Live RF Link Bench Test Results:
+    * Transmitter confirmed 100% operational: Frame stream verified with active stick movement, potentiometer changes, and live push button presses (PL:1, PR:1 successfully registered on RX).
+    * Bench Hardware Anomaly Identified: Receiver logs showed periodic "NRF24 SILICON DISCONNECTED!" and bursts of corrupted 0xFFFF (65535) frames registering at 4000+ Hz.
+  - Root Cause Analysis:
+    1. Floating SPI Bus: Loose DuPont jumpers or female socket on PA3 (CE), PA4 (CSN), PA5 (SCK), PA6 (MISO), PA7 (MOSI) cause SPI lines to float HIGH (0xFF), causing RF24 driver to report false packet-ready interrupts.
+    2. Power Rail Collapse / Decoupling: NRF24L01+PA+LNA power spikes during receive cause voltage brownouts on 3.3V rail if lacking a 10uF-100uF capacitor directly across NRF24 VCC and GND pins, or if receiver Blue Pill is powered from weak USB-TTL 3.3V LDO.
+  - Receiver Firmware Hardening (cyberrover_x5_rover_rx.ino v1.2):
+    1. 12-Bit ADC Packet Sanity Check: All 7 analog values are validated `<= 4095`. Any corrupted 0xFFFF frames are immediately flushed from RX FIFO and rejected.
+    2. Auto-Recovery Watchdog: If radio.isChipConnected() fails, loop() attempts reconnection every 1000ms automatically without requiring MCU manual resets.
+    3. Corrected Pin Header Log: Updated serial banner to correctly reflect CE=PA3, CSN=PA4.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)

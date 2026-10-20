@@ -16,8 +16,8 @@
  * EXACT HARDWARE WIRING (Receiver STM32 Blue Pill <---> NRF24L01+ Module):
  *   - Pin 1 (GND) ---> STM32 GND
  *   - Pin 2 (VCC) ---> STM32 3.3V (MUST have 10uF - 100uF capacitor to GND!)
- *   - Pin 3 (CE)  ---> PB10 (Chip Enable: Activates RX listening)
- *   - Pin 4 (CSN) ---> PB11 (Chip Select Not: SPI bus select)
+ *   - Pin 3 (CE)  ---> PA3  (Chip Enable: Activates RX listening)
+ *   - Pin 4 (CSN) ---> PA4  (Chip Select Not: SPI bus select)
  *   - Pin 5 (SCK) ---> PA5  (Hardware SPI1 Clock)
  *   - Pin 6 (MOSI)---> PA7  (Hardware SPI1 Master-Out-Slave-In)
  *   - Pin 7 (MISO)---> PA6  (Hardware SPI1 Master-In-Slave-Out)
@@ -38,8 +38,8 @@
 // =============================================================================
 //  PIN DEFINITIONS & CONFIGURATION
 // =============================================================================
-#define PIN_NRF_CE    PB10
-#define PIN_NRF_CSN   PB11
+#define PIN_NRF_CE    PA3
+#define PIN_NRF_CSN   PA4
 #define PIN_LED_HB    PC13    // Onboard Blue Pill LED (Active-LOW)
 
 // RF Link Constants (Identical to Transmitter)
@@ -79,6 +79,23 @@ uint32_t lastRateCheck    = 0;
 uint32_t lastPrintTime    = 0;
 bool     failsafeActive   = true;
 
+
+// =============================================================================
+//  RADIO INITIALIZATION HELPER
+// =============================================================================
+bool initReceiverRadio() {
+  if (!radio.begin()) {
+    return false;
+  }
+  radio.setPALevel(RF24_PA_LOW);           // Bench test power (prevents brownouts)
+  radio.setDataRate(RF24_250KBPS);         // 250 kbps for maximum sensitivity and range
+  radio.setChannel(RF_CHANNEL);            // Channel 108 (2.508 GHz)
+  radio.setPayloadSize(sizeof(RoverPacket));
+  radio.openReadingPipe(1, RF_PIPE);       // Listen on primary address
+  radio.startListening();
+  return true;
+}
+
 // =============================================================================
 //  SETUP
 // =============================================================================
@@ -91,43 +108,43 @@ void setup() {
 
   Serial.println();
   Serial.println(F("================================================================================"));
-  Serial.println(F("  CYBERROVER X5 — RECEIVER RF LINK VERIFICATION BENCH MONITOR v1.1              "));
+  Serial.println(F("  CYBERROVER X5 — RECEIVER RF LINK VERIFICATION BENCH MONITOR v1.2              "));
   Serial.println(F("  Lead Architect: Veer Pratap Saw | Katras, Jharkhand                           "));
   Serial.println(F("================================================================================"));
 
   // 1. Initialize Hardware SPI1 bus explicitly
   SPI.begin();
 
-  // 2. Initialize NRF24L01 Module
-  Serial.print(F(">>> Initializing NRF24L01+ Radio on Native SPI1 (PA5-7, PB10, PB11)... "));
-  if (!radio.begin()) {
-    Serial.println(F("[FAILED!]"));
-    Serial.println(F("CRITICAL ERROR: NRF24 silicon not responding on SPI1!"));
-    Serial.println(F("Troubleshooting Checklist:"));
-    Serial.println(F("  1. Verify 3.3V & GND wiring to NRF module (Do NOT use 5V!)."));
-    Serial.println(F("  2. Solder a 10uF - 100uF capacitor across NRF24 VCC and GND pins."));
-    Serial.println(F("  3. Check SPI1 pin connections: SCK=PA5, MISO=PA6, MOSI=PA7, CE=PB10, CSN=PB11."));
-    while (1) {
-      digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
-      delay(100); // Rapid alert flash
+  // 2. Initialize NRF24L01 Module (SCK=PA5, MISO=PA6, MOSI=PA7, CE=PA3, CSN=PA4)
+  Serial.print(F(">>> Initializing NRF24L01+ Radio on Native SPI1 (PA5-7, CE=PA3, CSN=PA4)... "));
+  
+  bool radioOk = false;
+  for (uint8_t attempt = 1; attempt <= 5; attempt++) {
+    if (initReceiverRadio()) {
+      radioOk = true;
+      break;
     }
+    digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
+    delay(200);
   }
-  Serial.println(F("[PASSED - SILICON OK]"));
 
-  // 3. Configure RF Parameters (Identical match to Transmitter)
-  radio.setPALevel(RF24_PA_LOW);           // Bench test power (prevents brownouts)
-  radio.setDataRate(RF24_250KBPS);         // 250 kbps for maximum sensitivity and range
-  radio.setChannel(RF_CHANNEL);            // Channel 108 (2.508 GHz)
-  radio.setPayloadSize(sizeof(RoverPacket));
-  radio.openReadingPipe(1, RF_PIPE);       // Listen on primary address
-  radio.startListening();
-
-  Serial.print(F(">>> Radio Listening on Channel: "));
-  Serial.print(RF_CHANNEL);
-  Serial.print(F(" (2.508 GHz) | Speed: 250 kbps | Payload: "));
-  Serial.print(sizeof(RoverPacket));
-  Serial.println(F(" Bytes"));
-  Serial.println(F(">>> Waiting for RF packets from Remote Transmitter..."));
+  if (radioOk) {
+    Serial.println(F("[PASSED - SILICON OK]"));
+    Serial.print(F(">>> Radio Listening on Channel: "));
+    Serial.print(RF_CHANNEL);
+    Serial.print(F(" (2.508 GHz) | Speed: 250 kbps | Payload: "));
+    Serial.print(sizeof(RoverPacket));
+    Serial.println(F(" Bytes"));
+    Serial.println(F(">>> Waiting for RF packets from Remote Transmitter..."));
+  } else {
+    Serial.println(F("[FAILED - RETRYING IN BACKGROUND]"));
+    Serial.println(F("CRITICAL HARDWARE NOTICE: NRF24 silicon not responding on SPI1!"));
+    Serial.println(F("Physical Troubleshooting Checklist:"));
+    Serial.println(F("  1. Verify 3.3V & GND wiring to NRF module (Do NOT use 5V!)."));
+    Serial.println(F("  2. Solder a 10uF - 100uF capacitor directly across NRF24 VCC & GND pins."));
+    Serial.println(F("  3. Check SPI1 connections: SCK=PA5, MISO=PA6, MOSI=PA7, CE=PA3, CSN=PA4."));
+    Serial.println(F(">>> Auto-recovery active: will automatically connect when wires are seated!"));
+  }
   Serial.println(F("================================================================================"));
   Serial.println();
 }
@@ -139,29 +156,56 @@ void loop() {
   uint32_t now = millis();
 
   // ---------------------------------------------------------------------------
-  // 1. CHECK FOR INCOMING RADIO PACKETS
+  // 1. SILICON WATCHDOG & AUTO-RECOVERY
   // ---------------------------------------------------------------------------
-  if (radio.available()) {
-    radio.read(&rxPacket, sizeof(RoverPacket));
+  static uint32_t lastReconnectAttempt = 0;
+  bool chipOk = radio.isChipConnected();
 
-    lastPacketTime = now;
-    packetsReceived++;
-    packetsPerSec++;
+  if (!chipOk) {
+    if (now - lastReconnectAttempt >= 1000) {
+      lastReconnectAttempt = now;
+      Serial.println(F(">>> [HARDWARE ERROR] NRF24 SILICON DISCONNECTED! Check SPI1 (PA5-7, PA3, PA4) & 3.3V! <<<"));
+      if (initReceiverRadio()) {
+        Serial.println(F(">>> [AUTO-RECOVERED] NRF24 Silicon Re-Established! Listening for Remote... <<<"));
+      }
+    }
+  } else {
+    // -------------------------------------------------------------------------
+    // 2. CHECK FOR INCOMING RADIO PACKETS WITH 12-BIT SANITY FILTER
+    // -------------------------------------------------------------------------
+    while (radio.available()) {
+      RoverPacket tempPacket;
+      radio.read(&tempPacket, sizeof(RoverPacket));
 
-    // Toggle onboard LED on every packet received (Visual Heartbeat)
-    digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
+      // Sanity Check: All 7 analog channels MUST be within valid 12-bit ADC range (0 - 4095)
+      // Discards corrupted 0xFFFF / SPI bus floating noise (e.g. 65535)
+      if (tempPacket.stick_lx <= 4095 && tempPacket.stick_ly <= 4095 &&
+          tempPacket.stick_rx <= 4095 && tempPacket.stick_ry <= 4095 &&
+          tempPacket.pot_l    <= 4095 && tempPacket.pot_c    <= 4095 && tempPacket.pot_r <= 4095) {
 
-    if (failsafeActive) {
-      failsafeActive = false;
-      Serial.println();
-      Serial.println(F("****************************************************************"));
-      Serial.println(F("  >>> RF LINK CONNECTED! RECEIVING LIVE DATA FROM REMOTE! <<<   "));
-      Serial.println(F("****************************************************************"));
+        rxPacket = tempPacket;
+        lastPacketTime = now;
+        packetsReceived++;
+        packetsPerSec++;
+
+        // Visual Heartbeat on active packet reception
+        digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
+
+        if (failsafeActive) {
+          failsafeActive = false;
+          Serial.println();
+          Serial.println(F("****************************************************************"));
+          Serial.println(F("  >>> RF LINK CONNECTED! RECEIVING LIVE DATA FROM REMOTE! <<<   "));
+          Serial.println(F("****************************************************************"));
+        }
+      } else {
+        radio.flush_rx(); // Discard corrupted packet
+      }
     }
   }
 
   // ---------------------------------------------------------------------------
-  // 2. FAILSAFE TIMEOUT MONITOR (500 ms threshold)
+  // 3. FAILSAFE TIMEOUT MONITOR (500 ms threshold)
   // ---------------------------------------------------------------------------
   if (!failsafeActive && (now - lastPacketTime > 500)) {
     failsafeActive = true;
@@ -173,7 +217,7 @@ void loop() {
   }
 
   // ---------------------------------------------------------------------------
-  // 3. PACKET RATE CALCULATOR (Every 1000ms)
+  // 4. PACKET RATE CALCULATOR (Every 1000ms)
   // ---------------------------------------------------------------------------
   static uint32_t displayRate = 0;
   if (now - lastRateCheck >= 1000) {
@@ -183,14 +227,13 @@ void loop() {
   }
 
   // ---------------------------------------------------------------------------
-  // 4. PERIODIC LIVE TELEMETRY STREAM TO SERIAL (Every 100ms = 10 Hz)
+  // 5. PERIODIC LIVE TELEMETRY STREAM TO SERIAL (Every 100ms = 10 Hz)
   // ---------------------------------------------------------------------------
   if (now - lastPrintTime >= 100) {
     lastPrintTime = now;
 
-    // Silicon Watchdog: Live probe to detect if jumper wire disconnected
-    if (!radio.isChipConnected()) {
-      Serial.println(F(">>> [HARDWARE ERROR] NRF24 SILICON DISCONNECTED! Check SPI & 3.3V wiring! <<<"));
+    if (!chipOk) {
+      // Hardware error already logged above
       return;
     }
 
