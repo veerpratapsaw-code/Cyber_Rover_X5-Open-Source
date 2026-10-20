@@ -255,27 +255,21 @@ Step 2.5: Receiver Perfboard Assembly & Paired 13-Channel Wireless RF Link: [COM
 Step 2.6: Remote OLED Display Cluster Integration (Stage 7 - Page 1 Dashboard): [COMPLETED & VERIFIED 100%]
   - Standalone Test Sketch: firmware/test/07_dashboard_gauge_cluster_test/07_dashboard_gauge_cluster_test.ino
   - Hardware I2C Diagnostic (Stage 4): Added continuous bus line voltage test, 9-pulse bus unlocker, and 0x01-0x7F scanner in firmware/test/04_i2c_oled_test/04_i2c_oled_test.ino which successfully verified the physical 1.3" OLED hardware on PB6/PB7.
-Step 2.7: Master Remote Transmitter HUD OS v1.3 Deployment: [COMPLETED & VERIFIED 100%]
+Step 2.7: Master Remote Transmitter HUD OS v1.4 Deployment: [COMPLETED & VERIFIED 100%]
   - File: firmware/cyberrover_x5_remote_tx/cyberrover_x5_remote_tx.ino
-  - Live UPiR Virtual Cockpit HUD:
-    * Left Gauge: Speedometer with dynamic moving arc + governor limit tick on outer track + Left Blinker arrow.
-    * Right Gauge: Tachometer with dynamic moving arc (0-600 RPM) + Right Blinker arrow.
-    * Center Top: Coolant icon + arch dots + paired RF link heartbeat dot.
-    * Center Mid: Colon ':' + Dynamic Drive Mode (P = Park/Disarmed, N = Neutral, D = Drive, R = Reverse, T = Tank Spin) + Dynamic power hashes.
-    * Center Bottom: Fuel pump icon + curved Fuel/Battery gauge arc (E <-> F).
-    * Bottom Right: Authentic UPiR watermark signature.
-  - Dynamic Speed Governor (Pot Left: PA0):
-    * Governs top speed continuously from 15% crawl (~47 cm/s) to 100% full sprint (314 cm/s).
-    * Full stick deflection accurately respects governor ceiling on both numbers and moving arcs.
-    * Outer track tick dynamically displays currently dialed governor limit.
-  - Multi-Tasking Loop Timing (Zero Interference):
-    * NRF24 RF Transmit: 40 Hz (25ms) packet transmission on Channel 108.
-    * OLED HUD Render: 25 FPS (40ms) non-blocking update over 400 kHz Fast I2C.
-    * Audio-Haptic Engine: Checked every cycle with phase-driven transitions.
-    * Telemetry Serial Stream: 10 Hz (100ms) for real-time monitoring.
+  - Live Raw Channel Telemetry Stream (10 Hz):
+    * Formatted stream: `[FRM:n|STATUS] LX:n LY:n RX:n RY:n | POT[L:n C:n R:n] | DIG: TL:n TR:n PL:n PR:n CKL:n`
+    * Gives immediate raw 12-bit ADC and digital states for all hardware controls.
+  - Right Stick Click Removal:
+    * Completely removed from digInputs array; hardcoded `txPacket.stick_clk_r = 0` to preserve 24-byte packet structure.
+    * Eliminates false buzzer triggers previously caused by the broken/chattering right gimbal switch on PA11.
+  - Unlocked HUD Speed & RPM Arcs:
+    * Throttle deflection and dynamic Speed Governor (Pot Left: PA0) always drive the speedometer and RPM arcs/numerals smoothly, preventing HUD lockup when Toggle Left is in Park 'P'.
+  - Updated Digital Pin Map:
+    * Toggle Left = PB3, Toggle Right = PB4, Push Left = PA12, Push Right = PA15, Stick Click L = PA10.
   - Compilation Benchmark (arduino-cli on STM32 Blue Pill):
-    * Flash: 48,268 bytes (73% of 64KB, or 37% of physical 128KB).
-    * SRAM: 3,100 bytes (15% of 20KB, leaving 17,380 bytes free).
+    * Flash: 49,444 bytes (75% of 64KB, or 38% of physical 128KB).
+    * SRAM: 3,084 bytes (15% of 20KB, leaving 17,396 bytes free).
     * Compile Result: 0 Errors, 0 Warnings.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
