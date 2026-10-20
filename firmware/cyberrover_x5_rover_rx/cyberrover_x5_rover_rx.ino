@@ -156,57 +156,42 @@ void loop() {
   uint32_t now = millis();
 
   // ---------------------------------------------------------------------------
-  // 1. SILICON WATCHDOG & AUTO-RECOVERY
+  // 1. INCOMING RADIO PACKET PROCESSING WITH 12-BIT SANITY FILTER
   // ---------------------------------------------------------------------------
-  static uint32_t lastReconnectAttempt = 0;
-  bool chipOk = radio.isChipConnected();
+  while (radio.available()) {
+    RoverPacket tempPacket;
+    radio.read(&tempPacket, sizeof(RoverPacket));
 
-  if (!chipOk) {
-    if (now - lastReconnectAttempt >= 1000) {
-      lastReconnectAttempt = now;
-      Serial.println(F(">>> [HARDWARE ERROR] NRF24 SILICON DISCONNECTED! Check SPI1 (PA5-7, PA3, PA4) & 3.3V! <<<"));
-      if (initReceiverRadio()) {
-        Serial.println(F(">>> [AUTO-RECOVERED] NRF24 Silicon Re-Established! Listening for Remote... <<<"));
+    // Sanity Check: All 7 analog channels MUST be within valid 12-bit ADC range (0 - 4095)
+    // Discards corrupted 0xFFFF / SPI bus floating noise (e.g. 65535)
+    if (tempPacket.stick_lx <= 4095 && tempPacket.stick_ly <= 4095 &&
+        tempPacket.stick_rx <= 4095 && tempPacket.stick_ry <= 4095 &&
+        tempPacket.pot_l    <= 4095 && tempPacket.pot_c    <= 4095 && tempPacket.pot_r <= 4095) {
+
+      rxPacket = tempPacket;
+      lastPacketTime = now;
+      packetsReceived++;
+      packetsPerSec++;
+
+      // Visual Heartbeat on active packet reception
+      digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
+
+      if (failsafeActive) {
+        failsafeActive = false;
+        Serial.println();
+        Serial.println(F("****************************************************************"));
+        Serial.println(F("  >>> RF LINK CONNECTED! RECEIVING LIVE DATA FROM REMOTE! <<<   "));
+        Serial.println(F("****************************************************************"));
       }
-    }
-  } else {
-    // -------------------------------------------------------------------------
-    // 2. CHECK FOR INCOMING RADIO PACKETS WITH 12-BIT SANITY FILTER
-    // -------------------------------------------------------------------------
-    while (radio.available()) {
-      RoverPacket tempPacket;
-      radio.read(&tempPacket, sizeof(RoverPacket));
-
-      // Sanity Check: All 7 analog channels MUST be within valid 12-bit ADC range (0 - 4095)
-      // Discards corrupted 0xFFFF / SPI bus floating noise (e.g. 65535)
-      if (tempPacket.stick_lx <= 4095 && tempPacket.stick_ly <= 4095 &&
-          tempPacket.stick_rx <= 4095 && tempPacket.stick_ry <= 4095 &&
-          tempPacket.pot_l    <= 4095 && tempPacket.pot_c    <= 4095 && tempPacket.pot_r <= 4095) {
-
-        rxPacket = tempPacket;
-        lastPacketTime = now;
-        packetsReceived++;
-        packetsPerSec++;
-
-        // Visual Heartbeat on active packet reception
-        digitalWrite(PIN_LED_HB, !digitalRead(PIN_LED_HB));
-
-        if (failsafeActive) {
-          failsafeActive = false;
-          Serial.println();
-          Serial.println(F("****************************************************************"));
-          Serial.println(F("  >>> RF LINK CONNECTED! RECEIVING LIVE DATA FROM REMOTE! <<<   "));
-          Serial.println(F("****************************************************************"));
-        }
-      } else {
-        radio.flush_rx(); // Discard corrupted packet
-      }
+    } else {
+      radio.flush_rx(); // Discard corrupted packet
     }
   }
 
   // ---------------------------------------------------------------------------
-  // 3. FAILSAFE TIMEOUT MONITOR (500 ms threshold)
+  // 2. FAILSAFE TIMEOUT & HARDWARE AUTO-RECOVERY (Only when link is lost)
   // ---------------------------------------------------------------------------
+  static uint32_t lastRecoveryProbe = 0;
   if (!failsafeActive && (now - lastPacketTime > 500)) {
     failsafeActive = true;
     digitalWrite(PIN_LED_HB, HIGH); // Turn LED off when link lost
@@ -216,8 +201,19 @@ void loop() {
     Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
   }
 
+  // If link has been lost for over 2 seconds, probe radio silicon and auto-recover
+  if (failsafeActive && (now - lastPacketTime > 2000) && (now - lastRecoveryProbe >= 2000)) {
+    lastRecoveryProbe = now;
+    if (!radio.isChipConnected()) {
+      Serial.println(F(">>> [HARDWARE NOTICE] NRF24 not responding on SPI1. Attempting auto-recovery... <<<"));
+      if (initReceiverRadio()) {
+        Serial.println(F(">>> [AUTO-RECOVERED] NRF24 Silicon Re-Established! Listening for Remote... <<<"));
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
-  // 4. PACKET RATE CALCULATOR (Every 1000ms)
+  // 3. PACKET RATE CALCULATOR (Every 1000ms)
   // ---------------------------------------------------------------------------
   static uint32_t displayRate = 0;
   if (now - lastRateCheck >= 1000) {
@@ -227,15 +223,10 @@ void loop() {
   }
 
   // ---------------------------------------------------------------------------
-  // 5. PERIODIC LIVE TELEMETRY STREAM TO SERIAL (Every 100ms = 10 Hz)
+  // 4. PERIODIC LIVE TELEMETRY STREAM TO SERIAL (Every 100ms = 10 Hz)
   // ---------------------------------------------------------------------------
   if (now - lastPrintTime >= 100) {
     lastPrintTime = now;
-
-    if (!chipOk) {
-      // Hardware error already logged above
-      return;
-    }
 
     if (failsafeActive) {
       Serial.println(F("[LINK: DISCONNECTED / FAILSAFE] Waiting for Remote Controller..."));

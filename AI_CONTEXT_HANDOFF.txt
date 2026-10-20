@@ -337,10 +337,11 @@ Step 2.12: Receiver RF Link Bench Verification & Silicon Disconnect Diagnosis (F
   - Root Cause Analysis:
     1. Floating SPI Bus: Loose DuPont jumpers or female socket on PA3 (CE), PA4 (CSN), PA5 (SCK), PA6 (MISO), PA7 (MOSI) cause SPI lines to float HIGH (0xFF), causing RF24 driver to report false packet-ready interrupts.
     2. Power Rail Collapse / Decoupling: NRF24L01+PA+LNA power spikes during receive cause voltage brownouts on 3.3V rail if lacking a 10uF-100uF capacitor directly across NRF24 VCC and GND pins, or if receiver Blue Pill is powered from weak USB-TTL 3.3V LDO.
-  - Receiver Firmware Hardening (cyberrover_x5_rover_rx.ino v1.2):
+  - Receiver Firmware Hardening (cyberrover_x5_rover_rx.ino v1.2.1):
     1. 12-Bit ADC Packet Sanity Check: All 7 analog values are validated `<= 4095`. Any corrupted 0xFFFF frames are immediately flushed from RX FIFO and rejected.
-    2. Auto-Recovery Watchdog: If radio.isChipConnected() fails, loop() attempts reconnection every 1000ms automatically without requiring MCU manual resets.
-    3. Corrected Pin Header Log: Updated serial banner to correctly reflect CE=PA3, CSN=PA4.
+    2. Zero SPI Register Contention: Removed active `isChipConnected()` polling from the primary packet loop. During active packet reception, `radio.available()` is processed directly with zero SPI register interruption, eliminating false disconnect alerts.
+    3. Failsafe-Only Auto-Recovery: Silicon probe and re-initialization are only performed if the link has dropped for > 2000 ms.
+    4. Compilation: 19,036 bytes Flash (29%), 1,476 bytes SRAM (7%). 0 Errors, 0 Warnings.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)
