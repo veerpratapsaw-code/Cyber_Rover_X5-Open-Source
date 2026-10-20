@@ -297,7 +297,23 @@ Step 2.9: HUD Vector Arrows, Dual Corner Pot Bars, Drive Mode Arming, and Push L
   - Push Left Button Hardware Pin Fix:
     * Identified why Left Push Button was not working: PIN_PUSH_LEFT was incorrectly defined as PA12 (the decommissioned broken right gimbal click).
     * Restored verified Stage 3 hardware pin definitions: PIN_PUSH_LEFT -> PA15 (Active-HIGH NC button), PIN_PUSH_RIGHT -> PB3, PIN_TOGGLE_LEFT -> PB4, PIN_TOGGLE_RIGHT -> PB5, PIN_STICK_CLK_L -> PA11.
-  - Verified Compilation via native STM32 arduino-cli: 50,376 bytes Flash (76%), 3,160 bytes SRAM (15%). 0 Errors, 0 Warnings. Commit: c0f8ebf.
+Step 2.10: 6-Pin Digital Jumper Block Physical Shift (Firmware v1.4.3): [COMPLETED & VERIFIED 100%]
+  - Hardware Constraint & Realignment:
+    * The 6-pin female jumper block collided with the OLED I2C connector on PB6/PB7.
+    * Veer physically shifted the entire 6-pin jumper block 1 pin downwards towards the USB port side.
+    * PB5 is now completely IDLE and unconnected.
+  - Active Digital Pin Mapping:
+    * PB5  -> IDLE (Open / Unconnected)
+    * PB4  -> Toggle Right (Free for Lights / Aux)
+    * PB3  -> Toggle Left (Master Arm/Disarm: 'P' = Disarmed, 'D' = Armed)
+    * PA15 -> Push Right (Normally Closed contact, Active-HIGH)
+    * PA12 -> Push Left (Normally Closed contact, Active-HIGH)
+    * PA11 -> Right Gimbal Click (Broken tactile switch, disabled)
+    * PA10 -> Left Gimbal Push Click (Normally Open contact, Active-LOW)
+  - Diagnostic Telemetry Stream:
+    * Serial monitor streams both debounced state and live pin voltage reading:
+      `DIG: TL:n(r:n) TR:n(r:n) PL:n(r:n) PR:n(r:n) CKL:n(r:n)`
+  - Verified Compilation via native STM32 arduino-cli: 50,412 bytes Flash (76%), 3,160 bytes SRAM (15%). 0 Errors, 0 Warnings. Commit: 0ef5905.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)
