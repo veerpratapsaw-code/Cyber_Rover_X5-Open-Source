@@ -32,13 +32,13 @@
  *     6. PA1  ---> Pot Center      (ADC1) [Camera Tilt Trim]
  *     7. PA2  ---> Pot Right       (ADC2) [Auxiliary / Battery Sim]
  *
- *   DIGITAL (5 Active Channels - Shifted 1 pin towards USB side; PB5 is IDLE):
- *     - PB5   ---> IDLE (Unconnected / Open)
+ *   DIGITAL (6 Active Channels):
  *     1. PB3  ---> Toggle Left     (Active-LOW  : LOW = ON/ARM,  HIGH = OFF/PARK)
  *     2. PB4  ---> Toggle Right    (Active-LOW  : LOW = ON,  HIGH = OFF) [Free for Lights/Aux]
- *     3. PA12 ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
+ *     3. PA8  ---> Push Left       (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
  *     4. PA15 ---> Push Right      (Active-HIGH : HIGH = PRESSED, LOW = RELEASED)
  *     5. PA10 ---> Left Stick Click(Active-LOW  : LOW = PRESSED, HIGH = UP)
+ *     6. PA11 ---> Right Stick Click(Active-LOW : LOW = PRESSED, HIGH = UP)
  *
  *   I2C OLED DISPLAY (1.3" SH1106 / 0.96" SSD1306):
  *     - PB6   ---> SCL (Hardware I2C1 Clock @ 400 kHz)
@@ -95,12 +95,12 @@
 #define PIN_POT_CENTER  PA1
 #define PIN_POT_RIGHT   PA2
 
-// 5 Active Digital Pins (Shifted 1 pin towards USB side; PB5 is IDLE):
 #define PIN_TOGGLE_LEFT  PB3
 #define PIN_TOGGLE_RIGHT PB4
-#define PIN_PUSH_LEFT    PA12
 #define PIN_PUSH_RIGHT   PA15
 #define PIN_STICK_CLK_L  PA10
+#define PIN_STICK_CLK_R  PA11
+#define PIN_PUSH_LEFT    PA8
 
 // Actuator Pins
 #define PIN_BUZZER       PB8
@@ -136,7 +136,7 @@ struct __attribute__((packed)) RoverPacket {
   uint8_t  push_l;      // 1 = PRESSED, 0 = RELEASED
   uint8_t  push_r;      // 1 = PRESSED, 0 = RELEASED
   uint8_t  stick_clk_l; // 1 = PRESSED, 0 = UP
-  uint8_t  stick_clk_r; // 0 = DISABLED (Click switch removed)
+  uint8_t  stick_clk_r; // 1 = PRESSED, 0 = UP
   uint32_t frame_id;    // Rolling frame sequence counter
 };
 
@@ -145,7 +145,7 @@ RF24 radio(PIN_NRF_CE, PIN_NRF_CSN);
 bool radioReady = false;
 
 // =============================================================================
-//  DIGITAL CONTROL TRACKING (5 Active Channels)
+//  DIGITAL CONTROL TRACKING (6 Active Channels)
 // =============================================================================
 struct DigitalInput {
   uint8_t pin;
@@ -159,9 +159,10 @@ struct DigitalInput {
 DigitalInput digInputs[] = {
   {PIN_TOGGLE_LEFT,  "Toggle Left  (PB3) ", "TL",  true,  LOW,  false},
   {PIN_TOGGLE_RIGHT, "Toggle Right (PB4) ", "TR",  true,  LOW,  false},
-  {PIN_PUSH_LEFT,    "Push Left    (PA12)", "PL",  false, HIGH, false},
+  {PIN_PUSH_LEFT,    "Push Left    (PA8) ", "PL",  false, HIGH, false},
   {PIN_PUSH_RIGHT,   "Push Right   (PA15)", "PR",  false, HIGH, false},
-  {PIN_STICK_CLK_L,  "Stick Click L(PA10)", "CKL", false, LOW,  false}
+  {PIN_STICK_CLK_L,  "Stick Click L(PA10)", "CKL", false, LOW,  false},
+  {PIN_STICK_CLK_R,  "Stick Click R(PA11)", "CKR", false, LOW,  false}
 };
 
 const uint8_t NUM_DIG_INPUTS = sizeof(digInputs) / sizeof(digInputs[0]);
@@ -758,13 +759,13 @@ void loop() {
       turboActive = false;
     }
 
-    // Read 5 Digital Channels (Right stick click disabled)
+    // Read 6 Digital Channels (All 6 active)
     txPacket.toggle_l    = digInputs[0].state ? 1 : 0;
     txPacket.toggle_r    = digInputs[1].state ? 1 : 0;
     txPacket.push_l      = digInputs[2].state ? 1 : 0;
     txPacket.push_r      = digInputs[3].state ? 1 : 0;
     txPacket.stick_clk_l = digInputs[4].state ? 1 : 0;
-    txPacket.stick_clk_r = 0; // Disabled
+    txPacket.stick_clk_r = digInputs[5].state ? 1 : 0;
 
     txPacket.frame_id    = ++frameCounter;
 
