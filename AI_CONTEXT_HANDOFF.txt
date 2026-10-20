@@ -271,6 +271,16 @@ Step 2.7: Master Remote Transmitter HUD OS v1.4 Deployment: [COMPLETED & VERIFIE
     * Flash: 49,444 bytes (75% of 64KB, or 38% of physical 128KB).
     * SRAM: 3,084 bytes (15% of 20KB, leaving 17,396 bytes free).
     * Compile Result: 0 Errors, 0 Warnings.
+Step 2.8: Reverse Speed Limiter Removal & Mechanical Margin Calibration (Firmware v1.4.1): [COMPLETED & VERIFIED 100%]
+  - Identified root cause of reverse speed capping at ~236-240 cm/s:
+    * In lines 824-825 of cyberrover_x5_remote_tx.ino, an artificial 75% reverse scaling factor (* 0.75f) was active:
+      `target_speed = throttle_ratio * (max_governed_speed * 0.75f);`
+    * With MAX_SPEED_CMPS = 314 cm/s, 314 * 0.75 = 235.5 cm/s (clamped in the 230-240s).
+  - Symmetrical Sprint Fix Deployed:
+    * Removed the 0.75 multiplier: Reverse speed and RPM now hit 100% full sprint (314 cm/s and 600 RPM).
+    * Added an 80-count mechanical end-stop margin (`joy_margin = 80`) to both forward and reverse throttle calculations. This guarantees that physical gimbal travel limits (which often stop at 50-80 counts before hitting pure 0 or 4095) still reach 100% (throttle_ratio = 1.0f) with zero lag.
+  - Symmetrically updated firmware/cyberrover_x5_remote_tx/cyberrover_x5_remote_tx.ino and firmware/test/07_dashboard_gauge_cluster_test/07_dashboard_gauge_cluster_test.ino.
+  - Verified Compilation via native STM32 arduino-cli: 49,468 bytes Flash (75%), 3,084 bytes SRAM (15%). 0 Errors, 0 Warnings. Commit: c794694.
 Step 3: Physical Remote Box Assembly & Final Mount:
   - Cut 2mm/3mm MDF plates according to the cutting schedule in the Master Guide:
     - Front & Back: 170 x 125 mm (2 pcs)
@@ -285,4 +295,5 @@ REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
 milestones before you end your response so Veer's project moves forward seamlessly!
 ================================================================================
+
 
