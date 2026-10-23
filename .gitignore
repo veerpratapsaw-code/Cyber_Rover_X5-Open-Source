@@ -2,3 +2,6 @@
 *.o
 *.bin
 *.elf
+scratch/
+__pycache__/
+*.pyc

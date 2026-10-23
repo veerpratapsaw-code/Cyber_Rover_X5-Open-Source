@@ -54,7 +54,7 @@ struct RoverPacket {
   uint8_t  toggle_r;    // 1 = Mute ON, 0 = Sound Active [PB4 Switch]
   uint8_t  push_l;      // 1 = PRESSED, 0 = RELEASED [PA8]
   uint8_t  push_r;      // 1 = PRESSED, 0 = RELEASED [PA15]
-  uint8_t  stick_clk_l; // 1 = PRESSED, 0 = UP [PA10]
+  uint8_t  stick_clk_l; // 1 = PRESSED, 0 = UP [PA12]
   uint8_t  stick_clk_r; // 1 = PRESSED, 0 = UP [PA11]
   uint32_t frame_id;    // Rolling sequence counter (0 to 4,294,967,295)
 };

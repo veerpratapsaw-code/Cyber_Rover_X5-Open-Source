@@ -15,7 +15,7 @@
               Speed Governor Pot--| PA0          PA2  |-- Aux / Battery Pot
               Camera Tilt Trim  --| PA1          PA15 |-- Push Right (NO, Active-HIGH)
           Master Arm (Active-LOW)-| PB3          PA8  |-- Push Left  (NO, Active-HIGH)
-         SOUND MUTE (Active-LOW)--| PB4          PA10 |-- Left Stick Click (Active-LOW)
+         SOUND MUTE (Active-LOW)--| PB4          PA12 |-- Left Stick Click (Active-LOW)
                 OLED I2C1 SCL   --| PB6          PA11 |-- Right Stick Click(Active-LOW)
                 OLED I2C1 SDA   --| PB7          PA5  |-- NRF24 SPI1 SCK
                  Piezo Buzzer   --| PB8          PA6  |-- NRF24 SPI1 MISO
@@ -43,8 +43,8 @@
 | **PA15**| Push Right | Digital | Active-HIGH (`INPUT`) | Auxiliary Push Button Right |
 | **PA10**| Stick Click L| Digital | Active-LOW (`INPUT_PULLUP`) | Left Gimbal Push Switch |
 | **PA11**| Stick Click R| Digital | Active-LOW (`INPUT_PULLUP`) | Right Gimbal Push Switch |
-| **PB8** | Buzzer | Output | Active-HIGH | Piezo Buzzer (Silenced when PB4 Mute active) |
-| **PB9** | Haptic Motor | Output | Active-HIGH | Vibration Motor via MOSFET |
+| **PB9** | Buzzer | Output | Active-HIGH | Piezo Buzzer (Silenced when PB4 Mute active) |
+| **PB8** | Haptic Motor | Output | Active-HIGH | Vibration Motor via MOSFET |
 | **PC13**| Heartbeat LED| Output | Active-LOW | Onboard Pilot Status LED |
 | **PB6** | OLED SCL | I2C1 | $400\text{ kHz}$ Fast Mode | Display Clock |
 | **PB7** | OLED SDA | I2C1 | Hardware I2C | Display Data |

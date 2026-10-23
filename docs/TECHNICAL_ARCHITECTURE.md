@@ -65,7 +65,7 @@ graph TD
 | `toggle_r` | `uint8_t` | 1 Byte | $0 \text{ or } 1$ | Toggle Right (Sound Mute: $1 = \text{Muted}, 0 = \text{Sound Active}$) |
 | `push_l` | `uint8_t` | 1 Byte | $0 \text{ or } 1$ | Push Left ($1 = \text{Pressed}$) [PA8] |
 | `push_r` | `uint8_t` | 1 Byte | $0 \text{ or } 1$ | Push Right ($1 = \text{Pressed}$) [PA15] |
-| `stick_clk_l`| `uint8_t` | 1 Byte | $0 \text{ or } 1$ | Left Stick Click ($1 = \text{Pressed}$) [PA10] |
+| `stick_clk_l`| `uint8_t` | 1 Byte | $0 \text{ or } 1$ | Left Stick Click ($1 = \text{Pressed}$) [PA12] |
 | `stick_clk_r`| `uint8_t` | 1 Byte | $0 \text{ or } 1$ | Right Stick Click ($1 = \text{Pressed}$) [PA11] |
 | `frame_id` | `uint32_t` | 4 Bytes | $0 - 2^{32}-1$ | Rolling 32-bit sequence counter |
 | **TOTAL** | | **24 Bytes** | | **Zero Padding Overhead** |
