@@ -73,7 +73,8 @@ You do not need a commercial robotics lab. All physical construction can be done
 
 ## ⚡ 4. Recommended Reading Order
 
+* **Interactive 3D CAD Model:** [Tinkercad Public 3D Blueprint: fighter cyberrover x5](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)
 * **How to Build the Rover:** [`HOW_TO_MAKE.md`](HOW_TO_MAKE.md)
-* **Lowest Cost Parts List:** [`BOM.md`](BOM.md)
+* **Parts List & Robu.in Sourcing:** [`BOM.md`](BOM.md)
 * **Mistakes to Avoid:** [`WHAT_NOT_TO_DO.md`](WHAT_NOT_TO_DO.md)
 * **Complete Technical Details:** [`ai/CYBERROVER_MASTER_KNOWLEDGE_BASE.md`](ai/CYBERROVER_MASTER_KNOWLEDGE_BASE.md)

@@ -1567,6 +1567,16 @@ Step 4.38: Voltage Scaling, Current Sensor Physics, Wire Gauges & Drift Dynamics
   - Drift & Spin Dynamics:
     * 4 Johnson motors produce 97.6 N thrust vs 18.8 N maximum static tire grip (5.2x surplus thrust).
     * Instant transition from static friction (μ_s = 0.8) to kinetic friction (μ_k = 0.55) drops grip by 31%, enabling effortless power drifting and high-G 360° tank spins on concrete.
+Step 4.39: Tinkercad Public 3D CAD Model & Robu.in Component Purchasing Integration (October 25, 2026): [COMPLETED]
+  - Public 3D CAD Model on Autodesk Tinkercad:
+    * Public URL: https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5
+    * Model Name: "fighter cyberrover x5"
+    * Features: Full dual-deck chassis CAD, 4x Johnson motor standoffs, 45° beveled nose plate, and upper electronic cutouts.
+    * Asset Integration: High-resolution cropped 3D preview render saved to `user/media/cad_and_designs/fighter_cyberrover_x5_tinkercad_3d.png`.
+    * Prominent Placement: Embedded directly as clickable 3D visual preview in `README.md` and `user/HOW_TO_MAKE.md`, referenced in `user/BOM.md` and `user/REQUIREMENTS.md`.
+  - Robu.in Official Supplier Attribution:
+    * Verified purchasing source: All primary mechanical and electronic components (Johnson 600 RPM motors SKU 5729, EasyMech steel brackets SKU 33225, 100mm wheels SKU 5884, BTS7960 drivers SKU 456144, STM32 Blue Pill, ESP32, and UBEC step-down modules) were sourced from Robu.in at authentic prices.
+    * Explicit purchasing callouts added to `README.md`, `user/HOW_TO_MAKE.md`, and `user/BOM.md` confirming that builders can purchase all items directly from Robu.in.
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed

@@ -6,6 +6,16 @@
 > **Commercial Comparison:** A commercial tactical combat ground robot with an off-the-shelf RadioMaster transmitter costs **₹25,000 to ₹45,000+**.  
 > **CyberRover X5 Total Real Build Cost:** **~₹9,800 INR** for the complete turn-key machine (Rover + Custom 50 Hz Handheld Transmitter + Misc Hardware).
 
+> [!IMPORTANT]
+> ### 🛒 Where to Buy All Items: 100% Sourced from [Robu.in](https://robu.in)
+> **You can buy all mechanical and electrical items directly from [Robu.in](https://robu.in) at the exact prices listed below!**  
+> Veer personally purchased all core motors, steel mounting brackets, 100mm wheels, BTS7960 motor drivers, STM32 & ESP32 microcontrollers, and power buck converters directly from **[Robu.in](https://robu.in)**. The SKU codes in the table below match their catalog so you can search and add them directly to your cart.
+
+> ### 📐 Interactive 3D CAD Blueprint (Public on Tinkercad)
+> Want to inspect how all these components fit together on the chassis before purchasing?  
+> Rotate, zoom, and inspect every standoff and cutout in your browser:  
+> 👉 **[Tinkercad 3D Model: fighter cyberrover x5](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)**
+
 ---
 
 ## 🚜 1. Rover Vehicle Platform & Powertrain

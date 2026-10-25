@@ -1,13 +1,22 @@
 # 🤖 HOW TO BUILD CYBERROVER X5
 ### *The Complete, Practical Builder's Guide — From Zero to a Working UGV*
 
-![CyberRover X5 & Custom Handheld Remote](user/media/photos/cyberrover_x5_hero.jpg)
+![CyberRover X5 & Custom Handheld Remote](media/photos/cyberrover_x5_hero.jpg)
 
 > **Welcome, Builder! 👋**  
 > My name is **Veer Pratap Saw**, an independent robotics architect from Katras / Dhanbad, Jharkhand, India.  
 > In under 1 year, I went from building cardboard prototypes to winning **1st Prize in the State-Level Science Championship** with this rover architecture.  
 > 
 > You **do not need** an expensive 3D printer, a high-tech workshop, or thousands of dollars to create world-class robotics. All you need is everyday plywood, reliable geared motors, basic electronics, and an **Agentic AI pair programmer** sitting beside you at your computer!
+
+> ### 📐 Interactive 3D CAD Model (Public on Tinkercad)
+> Want to see the exact 3D design of the car before you start cutting wood? Rotate it, inspect the motor brackets, and check every angle directly in your browser:  
+> 
+> [![Fighter CyberRover X5 3D CAD Model on Tinkercad](media/cad_and_designs/fighter_cyberrover_x5_tinkercad_3d.png)](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)  
+> 👉 **[Click Here to Open: fighter cyberrover x5 on Tinkercad (Free 3D Viewer)](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)**
+
+> ### 🛒 Where to Buy All the Hardware: 100% Sourced from [Robu.in](https://robu.in)
+> You can buy **all mechanical and electrical components** directly from **[Robu.in](https://robu.in)** at the exact prices listed in [`BOM.md`](BOM.md). Veer personally purchased all the motors, steel brackets, 100mm wheels, BTS7960 drivers, microcontrollers, and power modules from Robu.in!
 
 ---
 
@@ -33,8 +42,8 @@ Building real, high-power hardware requires steady discipline:
 ## 📸 The Completed Machine & Transmitter
 
 <p align="center">
-  <img src="user/media/photos/cyberrover_x5_chassis.jpg" width="48%" alt="Chassis Layout" />
-  <img src="user/media/photos/cyberrover_x5_remote.jpg" width="48%" alt="Handheld Remote Transmitter" />
+  <img src="media/photos/cyberrover_x5_chassis.jpg" width="48%" alt="Chassis Layout" />
+  <img src="media/photos/cyberrover_x5_remote.jpg" width="48%" alt="Handheld Remote Transmitter" />
 </p>
 
 * **The Rover Chassis:** Dual plywood decks separated by 4 threaded steel rod uprights with locknuts. The 45° beveled nose easily climbs over obstacles, steps, and ramps.

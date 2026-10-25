@@ -6,7 +6,16 @@
 **System Status:** **Physical Ground Teleoperation Tested & Verified (v2.0)**  
 **Drivetrain:** 4x 12V 600 RPM Johnson Geared Motors (555 Armature) + 100mm Ribbed Wheels  
 **Teleop Link:** 50 Hz Zero-Drop ESP-NOW (Channel 1, Smart Direct Unicast, 0ms Modem Wake-Up)  
-**Quick Links:** 📖 **[How to Build](user/HOW_TO_MAKE.md)** | 📱 **[Phone & PC Specs](user/REQUIREMENTS.md)** | 🧾 **[Lowest-Cost Parts (BOM)](user/BOM.md)** | ⚠️ **[Traps to Avoid](user/WHAT_NOT_TO_DO.md)**
+**Quick Links:** 📖 **[How to Build](user/HOW_TO_MAKE.md)** | 📐 **[Tinkercad 3D Model](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)** | 📱 **[Phone & PC Specs](user/REQUIREMENTS.md)** | 🧾 **[Parts (BOM)](user/BOM.md)** | ⚠️ **[Traps to Avoid](user/WHAT_NOT_TO_DO.md)**
+
+> ### 📐 Interactive 3D CAD Blueprint (Public on Tinkercad)
+> Want to see what you are actually building before cutting wood or ordering parts? Inspect every standoff, motor bracket, and deck cutout in interactive 3D:  
+> 
+> [![CyberRover X5 3D CAD on Tinkercad](user/media/cad_and_designs/fighter_cyberrover_x5_tinkercad_3d.png)](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)  
+> 👉 **[Click Here to Open & Rotate the 3D Model Live on Tinkercad (Free in Browser)](https://www.tinkercad.com/things/4SGPQKu9c76-fighter-cyberrover-x5)**
+
+> ### 🛒 Verified Hardware Supplier: 100% Sourced from [Robu.in](https://robu.in)
+> You can purchase **all mechanical and electronic items** (Johnson 600 RPM motors, EasyMech brackets, 100mm wheels, BTS7960 drivers, STM32, ESP32, and UBEC step-down modules) directly from **[Robu.in](https://robu.in)** at the exact authentic prices listed in [`user/BOM.md`](user/BOM.md) as Veer personally purchased all components from Robu.in for this build!
 
 ---
 
