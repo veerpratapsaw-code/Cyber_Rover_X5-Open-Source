@@ -53,11 +53,12 @@ int16_t targetSpeedLeft   = 0;
 int16_t targetSpeedRight  = 0;
 float   actualSpeedLeft   = 0.0f;
 float   actualSpeedRight  = 0.0f;
+uint8_t currentTurnRatio  = 33; // Dynamic turning ratio (0% = sharp skid pivot, 75% = wide sweep)
 
 // Slew Rates per 10ms tick (at 100 Hz):
-// ACCEL_STEP = 2.2 -> 220 PWM/sec (~530ms from 48 to 165 cruise). Silky smooth, progressive luxury ramp!
+// ACCEL_STEP = 8.0 -> 800 PWM/sec (~140ms from 48 to 165 cruise). Crisp, punchy, immediate throttle response!
 // DECEL_STEP = 18.0 -> 1800 PWM/sec (~90ms from 165 to 0 stop). Fast, crisp, safe dead-man stop!
-const float ACCEL_STEP    = 2.2f;
+const float ACCEL_STEP    = 8.0f;
 const float DECEL_STEP    = 18.0f;
 const float MIN_START_PWM = 48.0f; // Soft-start inception threshold to bypass static friction deadband
 const float MIN_DRIVE_PWM = 45.0f; // Below this, motors lock to 0V ground immediately
@@ -68,7 +69,7 @@ uint32_t lastZeroDwellR   = 0;
 const uint32_t REVERSE_DWELL_MS = 35; // 35ms pause when reversing polarity
 
 // Watchdog & Telemetry Timing
-const uint32_t WATCHDOG_TIMEOUT_MS = 350; // 350ms dead-man failsafe
+const uint32_t WATCHDOG_TIMEOUT_MS = 650; // 650ms dead-man failsafe (absorbs 2.4 GHz RF jitter, stops false cutouts)
 uint32_t lastCommandTime = 0;
 bool watchdogTripped = true;
 uint32_t lastTelemTime = 0;
@@ -370,28 +371,32 @@ void executeCommand(char cmd, uint8_t speed) {
       targetSpeedRight = -speed;
       break;
 
+    case 'T': // Dynamic Turn Ratio Update from Remote Center Pot (0 - 75%)
+      currentTurnRatio = constrain(speed, 0, 75);
+      break;
+
     case 'L': // Front Left Turn (W + A / Q)
     case 5:
-      targetSpeedLeft  = speed / 3;
+      targetSpeedLeft  = (speed * currentTurnRatio) / 100;
       targetSpeedRight = speed;
       break;
 
     case 'R': // Front Right Turn (W + D / E)
     case 6:
       targetSpeedLeft  = speed;
-      targetSpeedRight = speed / 3;
+      targetSpeedRight = (speed * currentTurnRatio) / 100;
       break;
 
     case 'G': // Back Left Turn (S + A / Z)
     case 7:
-      targetSpeedLeft  = -(speed / 3);
+      targetSpeedLeft  = -((speed * currentTurnRatio) / 100);
       targetSpeedRight = -speed;
       break;
 
     case 'I': // Back Right Turn (S + D / C)
     case 8:
       targetSpeedLeft  = -speed;
-      targetSpeedRight = -(speed / 3);
+      targetSpeedRight = -((speed * currentTurnRatio) / 100);
       break;
 
     case 'S': // Controlled Stop (Release / Dead-Man)
@@ -428,10 +433,15 @@ void logStm32Status(char cmd, uint8_t speed, uint32_t now) {
     else if (cmd == 'R' || cmd == 6) name = "FRONT_RIGHT";
     else if (cmd == 'G' || cmd == 7) name = "BACK_LEFT";
     else if (cmd == 'I' || cmd == 8) name = "BACK_RIGHT";
+    else if (cmd == 'T') name = "SET_TURN_RATIO";
 
-    char buf[90];
-    snprintf(buf, sizeof(buf), "[STM32] RX CMD: '%c' (%s) | SPD: %3d | TARGET L: %+4d R: %+4d",
-             cmd, name, speed, targetSpeedLeft, targetSpeedRight);
+    char buf[96];
+    if (cmd == 'T') {
+      snprintf(buf, sizeof(buf), "[STM32] RX CMD: 'T' (SET_TURN_RATIO) | RATIO: %3d%%", currentTurnRatio);
+    } else {
+      snprintf(buf, sizeof(buf), "[STM32] RX CMD: '%c' (%s) | SPD: %3d | TARGET L: %+4d R: %+4d",
+               cmd, name, speed, targetSpeedLeft, targetSpeedRight);
+    }
 
     Serial.println(buf);
     // CRITICAL: NEVER print to Serial1! PA9/PA10 is reserved exclusively for high-speed bridge control!

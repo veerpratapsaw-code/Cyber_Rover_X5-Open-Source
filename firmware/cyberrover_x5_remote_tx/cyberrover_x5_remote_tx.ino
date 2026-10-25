@@ -149,6 +149,122 @@ struct __attribute__((packed)) RoverPacket {
 
 static_assert(sizeof(RoverPacket) == 24, "CRITICAL: RoverPacket must be exactly 24 bytes!");
 
+// =============================================================================
+//  CYBERPACKET (16-BYTE PACKED BINARY TELEOPERATION SPECIFICATION v3.0)
+// =============================================================================
+#define CYBER_FRAME_HEADER_1  0x5A
+#define CYBER_FRAME_HEADER_2  0xA5
+#define CYBER_FRAME_TRAILER   0xED
+#define CYBER_PACKET_SIZE     16
+#define CYBER_DEVICE_ID       0xC5
+
+#define CYBER_BTN_ARM_BIT     0 // Bit 0: 1 = ARMED ('D'), 0 = PARK ('P')
+#define CYBER_BTN_MUTE_BIT    1 // Bit 1: 1 = MUTE ON, 0 = SOUND ON
+#define CYBER_BTN_PL_BIT      2 // Bit 2: 1 = Left Button PRESSED
+#define CYBER_BTN_PR_BIT      3 // Bit 3: 1 = Right Button PRESSED
+#define CYBER_BTN_CKL_BIT     4 // Bit 4: 1 = Left Click PRESSED (Turbo)
+#define CYBER_BTN_CKR_BIT     5 // Bit 5: 1 = Right Click PRESSED
+#define CYBER_PAGE_MASK       0xC0 // Bits 6-7: Display Page (0 to 3)
+#define CYBER_PAGE_SHIFT      6
+
+#define CYBER_PROFILE_MASK    0x0F // Bits 0-3: Profile (0=Arcade, 1=Tank, 2=1-Stick)
+#define CYBER_RATE_MASK       0xF0 // Bits 4-7: Rate / 10 (2=20Hz, 4=40Hz, 5=50Hz)
+#define CYBER_RATE_SHIFT      4
+
+#pragma pack(push, 1)
+struct CyberPacket {
+  uint8_t  device_id;    // [0]     Hardware ID: CYBER_DEVICE_ID (0xC5)
+  uint8_t  seq_id;       // [1]     Rolling Sequence Counter (0 - 255)
+  uint16_t timestamp_ms; // [2-3]   Hardware millisecond timestamp (16-bit) for latency measurement
+  int8_t   axis_lx;      // [4]     Left Stick X (-100% to +100%)
+  int8_t   axis_ly;      // [5]     Left Stick Y (-100% to +100%) [Throttle]
+  int8_t   axis_rx;      // [6]     Right Stick X (-100% to +100%) [Steering in Arcade]
+  int8_t   axis_ry;      // [7]     Right Stick Y (-100% to +100%) [Track R in Tank]
+  uint8_t  speed_gov;    // [8]     Speed Governor Factor (15 to 100%) [Pot Left]
+  uint8_t  turn_ratio;   // [9]     Dynamic Turn Radius / Trim (0 to 75%) [Pot Center]
+  uint8_t  pot_aux;      // [10]    Auxiliary Knob 3 / Page (0 to 100%) [Pot Right]
+  uint8_t  buttons;      // [11]    bit0=ARM, bit1=MUTE, bit2=PL, bit3=PR, bit4=CKL, bit5=CKR, bit6-7=Page (0-3)
+  uint8_t  mode_flags;   // [12]    bits 0-3 = Profile (0=Arcade, 1=Tank, 2=1-Stick), bits 4-7 = Rate / 10 (2, 4, 5)
+  uint16_t frame_id;     // [13-14] High-Resolution Monotonic Frame ID (0 - 65535)
+  uint8_t  crc8;         // [15]    CRC-8-ATM (Polynomial 0x07) over bytes [0..14]
+};
+#pragma pack(pop)
+static_assert(sizeof(CyberPacket) == 16, "CRITICAL: CyberPacket must be exactly 16 bytes!");
+
+// CRC-8 Lookup Table (Polynomial 0x07: x^8 + x^2 + x + 1, CRC-8-ATM)
+static const uint8_t crc8_atm_table[256] = {
+  0x00, 0x07, 0x0E, 0x09, 0x1C, 0x1B, 0x12, 0x15, 0x38, 0x3F, 0x36, 0x31, 0x24, 0x23, 0x2A, 0x2D,
+  0x70, 0x77, 0x7E, 0x79, 0x6C, 0x6B, 0x62, 0x65, 0x48, 0x4F, 0x46, 0x41, 0x54, 0x53, 0x5A, 0x5D,
+  0xE0, 0xE7, 0xEE, 0xE9, 0xFC, 0xFB, 0xF2, 0xF5, 0xD8, 0xDF, 0xD6, 0xD1, 0xC4, 0xC3, 0xCA, 0xCD,
+  0x90, 0x97, 0x9E, 0x99, 0x8C, 0x8B, 0x82, 0x85, 0xA8, 0xAF, 0xA6, 0xA1, 0xB4, 0xB3, 0xBA, 0xBD,
+  0xC7, 0xC0, 0xC9, 0xCE, 0xDB, 0xDC, 0xD5, 0xD2, 0xFF, 0xF8, 0xF1, 0xF6, 0xE3, 0xE4, 0xED, 0xEA,
+  0xB7, 0xB0, 0xB9, 0xBE, 0xAB, 0xAC, 0xA5, 0xA2, 0x8F, 0x88, 0x81, 0x86, 0x93, 0x94, 0x9D, 0x9A,
+  0x27, 0x20, 0x29, 0x2E, 0x3B, 0x3C, 0x35, 0x32, 0x1F, 0x18, 0x11, 0x16, 0x03, 0x04, 0x0D, 0x0A,
+  0x57, 0x50, 0x59, 0x5E, 0x4B, 0x4C, 0x45, 0x42, 0x6F, 0x68, 0x61, 0x66, 0x73, 0x74, 0x7D, 0x7A,
+  0x89, 0x8E, 0x87, 0x80, 0x95, 0x92, 0x9B, 0x9C, 0xB1, 0xB6, 0xBF, 0xB8, 0xAD, 0xAA, 0xA3, 0xA4,
+  0xF9, 0xFE, 0xF7, 0xF0, 0xE5, 0xE2, 0xEB, 0xEC, 0xC1, 0xC6, 0xCF, 0xC8, 0xDD, 0xDA, 0xD3, 0xD4,
+  0x69, 0x6E, 0x67, 0x60, 0x75, 0x72, 0x7B, 0x7C, 0x51, 0x56, 0x5F, 0x58, 0x4D, 0x4A, 0x43, 0x44,
+  0x19, 0x1E, 0x17, 0x10, 0x05, 0x02, 0x0B, 0x0C, 0x21, 0x26, 0x2F, 0x28, 0x3D, 0x3A, 0x33, 0x34,
+  0x4E, 0x49, 0x40, 0x47, 0x52, 0x55, 0x5C, 0x5B, 0x76, 0x71, 0x78, 0x7F, 0x6A, 0x6D, 0x64, 0x63,
+  0x3E, 0x39, 0x30, 0x37, 0x22, 0x25, 0x2C, 0x2B, 0x06, 0x01, 0x08, 0x0F, 0x1A, 0x1D, 0x14, 0x13,
+  0xAE, 0xA9, 0xA0, 0xA7, 0xB2, 0xB5, 0xBC, 0xBB, 0x96, 0x91, 0x98, 0x9F, 0x8A, 0x8D, 0x84, 0x83,
+  0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB, 0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3
+};
+
+inline uint8_t computeCyberChecksum(const CyberPacket& p) {
+  const uint8_t* raw = reinterpret_cast<const uint8_t*>(&p);
+  uint8_t crc = 0x00;
+  for (size_t i = 0; i < 15; i++) {
+    crc = crc8_atm_table[crc ^ raw[i]];
+  }
+  return crc;
+}
+
+inline uint8_t computeCyberChecksum(const volatile CyberPacket& p) {
+  const volatile uint8_t* raw = reinterpret_cast<const volatile uint8_t*>(&p);
+  uint8_t crc = 0x00;
+  for (size_t i = 0; i < 15; i++) {
+    crc = crc8_atm_table[crc ^ raw[i]];
+  }
+  return crc;
+}
+
+inline uint8_t computeCyberCrc8(const CyberPacket& p) {
+  return computeCyberChecksum(p);
+}
+
+inline uint8_t computeCyberCrc8(const volatile CyberPacket& p) {
+  return computeCyberChecksum(p);
+}
+
+inline bool isCyberPacketValid(const CyberPacket& p) {
+  if (p.device_id != CYBER_DEVICE_ID) return false;
+  if (p.axis_lx < -100 || p.axis_lx > 100) return false;
+  if (p.axis_ly < -100 || p.axis_ly > 100) return false;
+  if (p.axis_rx < -100 || p.axis_rx > 100) return false;
+  if (p.axis_ry < -100 || p.axis_ry > 100) return false;
+  if (p.speed_gov > 100) return false;
+  if (p.turn_ratio > 100) return false;
+  if (p.pot_aux > 100) return false;
+  if (computeCyberChecksum(p) != p.crc8) return false;
+  return true;
+}
+
+inline void setCyberButtons(CyberPacket& p, bool arm, bool mute, bool pl, bool pr, bool ckl, bool ckr, uint8_t page) {
+  p.buttons = (arm ? 1 : 0) |
+              ((mute ? 1 : 0) << 1) |
+              ((pl ? 1 : 0) << 2) |
+              ((pr ? 1 : 0) << 3) |
+              ((ckl ? 1 : 0) << 4) |
+              ((ckr ? 1 : 0) << 5) |
+              ((page & 0x03) << 6);
+}
+
+inline void setCyberModeFlags(CyberPacket& p, uint8_t profile, uint8_t rate_hz) {
+  uint8_t rate_code = rate_hz / 10;
+  p.mode_flags = (profile & CYBER_PROFILE_MASK) | ((rate_code & 0x0F) << CYBER_RATE_SHIFT);
+}
+
 void renderCompactTelemetryPage(const RoverPacket& pkt, bool rf_ack, bool is_muted, uint32_t now_ms);
 
 // =============================================================================
@@ -260,6 +376,10 @@ enum MenuState {
   MENU_STATE_INFO
 };
 
+// Current Display Page (0 = Dashboard HUD, 1 = 7-Channel Spectrum, 2 = Combat Powertrain MFD, 3 = Settings Menu)
+const uint8_t TOTAL_PAGES = 4;
+uint8_t currentPage       = 0;
+
 MenuState menuState = MENU_STATE_ROOT;
 uint8_t menuIndex = 0;
 uint8_t menuScrollTop = 0;
@@ -282,7 +402,7 @@ RoverPacket txPacket;
 bool radioReady = false; // NRF24 inactive; Telemetry & controls routed via ESP-NOW Bridge
 
 // =============================================================================
-//  DIGITAL CONTROL TRACKING (6 Active Channels)
+//  DIGITAL CONTROL TRACKING (5 Active Channels - CKR Decommissioned)
 // =============================================================================
 struct DigitalInput {
   uint8_t pin;
@@ -291,15 +411,16 @@ struct DigitalInput {
   bool isToggle;
   bool activeLevel;
   bool state;
+  bool lastRaw;
+  uint32_t lastDebounceTime;
 };
 
 DigitalInput digInputs[] = {
-  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB3) ", "TL",  true,  LOW,  false},
-  {PIN_TOGGLE_RIGHT, "Toggle Right (PB4) ", "TR",  true,  LOW,  false}, // SOUND MUTE
-  {PIN_PUSH_LEFT,    "Push Left    (PA8) ", "PL",  false, HIGH, false},
-  {PIN_PUSH_RIGHT,   "Push Right   (PA15)", "PR",  false, HIGH, false},
-  {PIN_STICK_CLK_L,  "Stick Click L(PA12)", "CKL", false, LOW,  false},
-  {PIN_STICK_CLK_R,  "Stick Click R(PA11)", "CKR", false, LOW,  false}
+  {PIN_TOGGLE_LEFT,  "Toggle Left  (PB3) ", "TL",  true,  LOW,  false, HIGH, 0},
+  {PIN_TOGGLE_RIGHT, "Toggle Right (PB4) ", "TR",  true,  LOW,  false, HIGH, 0}, // SOUND MUTE
+  {PIN_PUSH_LEFT,    "Push Left    (PA8) ", "PL",  false, HIGH, false, LOW,  0},
+  {PIN_PUSH_RIGHT,   "Push Right   (PA15)", "PR",  false, HIGH, false, LOW,  0},
+  {PIN_STICK_CLK_L,  "Stick Click L(PA12)", "CKL", false, LOW,  false, HIGH, 0}
 };
 
 const uint8_t NUM_DIG_INPUTS = sizeof(digInputs) / sizeof(digInputs[0]);
@@ -407,6 +528,13 @@ void playStartupConfirmation() {
 }
 
 void triggerAlert(AlertEvent evt) {
+  // Suppress low-priority or repeat alerts while an alert is already in progress
+  if (currentAlert != ALERT_NONE) {
+    if (evt == ALERT_POT_NOTCH || evt == ALERT_BUTTON_CLICK) {
+      return;
+    }
+  }
+
   currentAlert   = evt;
   alertStartTime = millis();
   alertPhase     = 0;
@@ -518,15 +646,11 @@ void updateAlertEngine() {
 //  JTAG RELEASE ROUTINE (Frees PA15, PB3, PB4 while preserving SWD PA13/PA14)
 // =============================================================================
 void releaseJTAG() {
-  #if defined(__HAL_RCC_AFIO_CLK_ENABLE) && defined(__HAL_AFIO_REMAP_SWJ_NOJTAG)
-    __HAL_RCC_AFIO_CLK_ENABLE();
-    __HAL_AFIO_REMAP_SWJ_NOJTAG(); // SWJ_CFG = 010 (JTAG Disabled, SW-DP Enabled)
-  #elif defined(AFIO_MAPR_SWJ_CFG_JTAGDISABLE)
-    RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
-    AFIO->MAPR = (AFIO->MAPR & ~AFIO_MAPR_SWJ_CFG) | AFIO_MAPR_SWJ_CFG_JTAGDISABLE;
-  #elif defined(disableDebugPorts)
-    disableDebugPorts();
-  #endif
+  // Direct hardware register writes for STM32F103 ARM Cortex-M3:
+  // Bit 0 of RCC_APB2ENR is AFIOEN (AFIO peripheral clock)
+  RCC->APB2ENR |= (1UL << 0);
+  // SWJ_CFG in AFIO_MAPR [bits 26:24]: 010 = JTAG-DP Disabled, SW-DP Enabled
+  AFIO->MAPR = (AFIO->MAPR & ~(7UL << 24)) | (2UL << 24);
 }
 
 // =============================================================================
@@ -985,7 +1109,7 @@ void renderCompactTelemetryPage(const RoverPacket& pkt, bool rf_ack, bool is_mut
     digInputs[2].state, // PL
     digInputs[3].state, // PR
     digInputs[4].state, // CKL
-    digInputs[5].state  // CKR
+    false               // CKR (Decommissioned)
   };
 
   u8g2.setFont(u8g2_font_4x6_tr);
@@ -1339,11 +1463,18 @@ void renderSettingsMenuPage() {
 void handleSettingsMenuInput(uint32_t now) {
   static uint32_t lastNavMove = 0;
 
-  // Left Stick LY (PB0) controls UP/DOWN; LX (PB1) controls LEFT/RIGHT (Normalized % thresholds)
-  bool stick_up   = (live_thr_pct >= 40);   // Forward / Up
-  bool stick_down = (live_thr_pct <= -40);  // Backward / Down
-  bool stick_left = (live_lx_pct <= -40);   // Left
-  bool stick_right= (live_lx_pct >= 40);    // Right
+  // Dynamic Navigation Thresholds tied directly to the pilot's calibrated deadband settings:
+  // (Zero hardcoded magic numbers like 35% or 40% — fully adaptive to remoteConfig deadband)
+  int deadband_margin_l = max(30, (int)(remoteConfig.deadband_l / 10)); // Variable 10% deadband guard
+  int nav_threshold_l   = (int)remoteConfig.deadband_l + deadband_margin_l;
+  int diff_ly           = (int)filt_ly - (int)auto_center_ly;
+  int diff_lx           = (int)filt_lx - (int)auto_center_lx;
+
+  // Left Stick LY (PB0) controls UP/DOWN; LX (PB1) controls LEFT/RIGHT:
+  bool stick_up   = (diff_ly >= nav_threshold_l);   // Forward / Up
+  bool stick_down = (diff_ly <= -nav_threshold_l);  // Backward / Down
+  bool stick_left = (diff_lx <= -nav_threshold_l);  // Left
+  bool stick_right= (diff_lx >= nav_threshold_l);   // Right
 
   // Button inputs:
   // digInputs[2] = Push Left (PA8)  -> BACK
@@ -1351,14 +1482,50 @@ void handleSettingsMenuInput(uint32_t now) {
   bool btn_enter = digInputs[3].state; // Active-HIGH
   bool btn_back  = digInputs[2].state; // Active-HIGH
 
+  // Right Stick RX (PA4) Redundant Fallback Navigation:
+  // Dynamically tied to remoteConfig.deadband_r (Variable threshold, NOT a hardcoded 35%):
+  // Deflecting RIGHT beyond deadband boundary -> ENTER / SELECT / GO FRONT
+  // Deflecting LEFT beyond deadband boundary  -> BACK / RETURN
+  int deadband_margin_r = max(30, (int)(remoteConfig.deadband_r / 10)); // Variable 10% deadband guard
+  int nav_threshold_r   = (int)remoteConfig.deadband_r + deadband_margin_r;
+  int diff_rx           = (int)filt_rx - (int)auto_center_rx;
+
+  bool rx_stick_right   = (diff_rx >= nav_threshold_r);
+  bool rx_stick_left    = (diff_rx <= -nav_threshold_r);
+
   static bool lastEnterState = false;
   static bool lastBackState  = false;
-  bool enterPressed = (btn_enter && !lastEnterState);
-  bool backPressed  = (btn_back  && !lastBackState);
+  static bool lastRxRight    = false;
+  static bool lastRxLeft     = false;
+  static uint32_t lastRxNavTime = 0;
+
+  bool rxEnterPressed = false;
+  bool rxBackPressed  = false;
+
+  if (now - lastRxNavTime >= 200) {
+    if (rx_stick_right && !lastRxRight) {
+      rxEnterPressed = true;
+      lastRxNavTime  = now;
+    } else if (rx_stick_left && !lastRxLeft) {
+      rxBackPressed  = true;
+      lastRxNavTime  = now;
+    }
+  }
+  lastRxRight = rx_stick_right;
+  lastRxLeft  = rx_stick_left;
+
+  bool enterPressed = (btn_enter && !lastEnterState) || rxEnterPressed;
+  bool backPressed  = (btn_back  && !lastBackState)  || rxBackPressed;
   lastEnterState = btn_enter;
   lastBackState  = btn_back;
 
   if (menuState == MENU_STATE_ROOT) {
+    if (backPressed) {
+      // Allow exiting Settings Menu back to Dashboard HUD via Right Stick Left
+      currentPage = 0;
+      triggerAlert(ALERT_TOGGLE_OFF);
+      return;
+    }
     if (now - lastNavMove >= 200) {
       if (stick_up) {
         lastNavMove = now;
@@ -1816,6 +1983,9 @@ void runBootStickCalibration() {
 // =============================================================================
 void setup() {
   Serial.begin(115200);
+#if defined(Serial1)
+  Serial1.begin(115200);
+#endif
   delay(500);
 
   // 1. Release JTAG to allow PB3, PB4, PA15 to act as standard digital GPIO
@@ -1826,8 +1996,8 @@ void setup() {
   pinMode(PIN_TOGGLE_RIGHT, INPUT_PULLUP);   // PB4: Active-LOW (LOW = MUTE, HIGH = SOUND)
   pinMode(PIN_STICK_CLK_L,  INPUT_PULLUP);   // PA12: Active-LOW
   pinMode(PIN_STICK_CLK_R,  INPUT_PULLUP);   // PA11: Active-LOW
-  pinMode(PIN_PUSH_LEFT,    INPUT_PULLDOWN); // PA8: Active-HIGH
-  pinMode(PIN_PUSH_RIGHT,   INPUT_PULLDOWN); // PA15: Active-HIGH
+  pinMode(PIN_PUSH_LEFT,    INPUT_PULLUP);   // PA8: Ground-switched with internal 3.3V pull-up reference
+  pinMode(PIN_PUSH_RIGHT,   INPUT_PULLUP);   // PA15: Ground-switched with internal 3.3V pull-up reference
 
   // Arming Safety Interlock: If powered up while Toggle Left is already in ARM position, require cycling to PARK first
   if (digitalRead(PIN_TOGGLE_LEFT) == LOW) {
@@ -1843,8 +2013,9 @@ void setup() {
 
   // 3. Configure Hardware I2C & U8g2 Display
   Wire.begin();
-  Wire.setClock(400000); // 400 kHz Fast I2C
   u8g2.begin();
+  u8g2.setBusClock(400000);
+  Wire.setClock(400000); // Enforce true 400 kHz Fast I2C after u8g2 init
   loadRemoteSettings();
   u8g2.setContrast(remoteConfig.contrast);
 
@@ -1884,9 +2055,6 @@ bool lastTxAck             = false;
 bool wasLinkConnected      = false;
 bool turboActive           = false;
 
-const uint8_t TOTAL_PAGES  = 4;
-uint8_t currentPage        = 0; // 0 = Dashboard HUD (Page 1), 1 = 7-Channel Spectrum (Page 2), 2 = Raw Telemetry Matrix (Page 3), 3 = Settings & System Menu (Page 4)
-
 void loop() {
   uint32_t now = millis();
 
@@ -1894,45 +2062,50 @@ void loop() {
   updateAlertEngine();
 
   // ====================================================================
-  //  1. CHECK DIGITAL EVENTS & MUTE SWITCH
+  //  1. CHECK DIGITAL EVENTS & MUTE SWITCH (35ms Rock-Solid Debounce)
   // ====================================================================
   for (uint8_t i = 0; i < NUM_DIG_INPUTS; i++) {
     bool raw = digitalRead(digInputs[i].pin);
-    bool isCurrentActive = (raw == digInputs[i].activeLevel);
-
-    if (i == 0 && armSafetyLockout) {
-      // Toggle Left (PB3): When pilot physically moves switch to PARK (HIGH), clear safety lockout!
-      if (!isCurrentActive) {
-        armSafetyLockout = false;
-      }
+    if (raw != digInputs[i].lastRaw) {
+      digInputs[i].lastRaw = raw;
+      digInputs[i].lastDebounceTime = now;
     }
 
-    if (isCurrentActive != digInputs[i].state) {
-      digInputs[i].state = isCurrentActive;
+    if ((now - digInputs[i].lastDebounceTime) >= 35) {
+      bool isCurrentActive = (digInputs[i].lastRaw == digInputs[i].activeLevel);
 
-      if (digInputs[i].isToggle) {
-        if (isCurrentActive) {
-          triggerAlert(ALERT_TOGGLE_ON);
-        } else {
-          triggerAlert(ALERT_TOGGLE_OFF);
+      if (i == 0 && armSafetyLockout) {
+        // Toggle Left (PB3): When pilot physically moves switch to PARK (HIGH), clear safety lockout!
+        if (!isCurrentActive) {
+          armSafetyLockout = false;
         }
-      } else {
-        if (isCurrentActive) {
-          // If in Settings Menu (Page 4), suppress generic button click for PA8/PA15 so menu tones remain crisp
-          if (currentPage != 3 || (i != 2 && i != 3)) {
-            triggerAlert(ALERT_BUTTON_CLICK);
-          }
+      }
 
-          // Button Clicks & Page / Turbo Handlers
-          if (i == 4) { // Left Stick Click (PA12) -> TURBO MODE TOGGLE (Instant 100% Speed)
-            turboActive = !turboActive;
-            if (turboActive) {
-              triggerAlert(ALERT_TURBO_KICK);
-            } else {
+      if (isCurrentActive != digInputs[i].state) {
+        digInputs[i].state = isCurrentActive;
+
+        if (digInputs[i].isToggle) {
+          if (isCurrentActive) {
+            triggerAlert(ALERT_TOGGLE_ON);
+          } else {
+            triggerAlert(ALERT_TOGGLE_OFF);
+          }
+        } else {
+          if (isCurrentActive) {
+            // If in Settings Menu (Page 4), suppress generic button click for PA8/PA15 so menu tones remain crisp
+            if (currentPage != 3 || (i != 2 && i != 3)) {
               triggerAlert(ALERT_BUTTON_CLICK);
             }
-          } else if (i == 5) {
-            // Right Stick Click (PA11) -> DECOMMISSIONED TO NOTHING (Screen selection moved to Pot Right)
+
+            // Left Stick Click (PA12) -> TURBO MODE TOGGLE (Instant 100% Speed)
+            if (i == 4) {
+              turboActive = !turboActive;
+              if (turboActive) {
+                triggerAlert(ALERT_TURBO_KICK);
+              } else {
+                triggerAlert(ALERT_BUTTON_CLICK);
+              }
+            }
           }
         }
       }
@@ -1940,23 +2113,122 @@ void loop() {
   }
 
   bool isMuted = digInputs[1].state; // Toggle Right PB4 is Mute
+  bool isArmed = (currentPage != 3 && !armSafetyLockout && digInputs[0].state); // Toggle Left PB3 is Arm
+
+  // Retain last commanded turn ratio for Serial Monitor reporting
+  static uint8_t last_turn_ratio = 0;
 
   // ====================================================================
-  //  1.5. SETTINGS MENU INPUT PROCESSING (When on Page 4)
+  //  1.5. READ & CONDITION ANALOG INPUTS & PAGE SELECTION (Every Cycle)
+  // ====================================================================
+  // Read and Condition Joysticks with 3-Stage Filtering (alpha = 0.70)
+  filt_lx = applyAnalogFilter(0, analogRead(PIN_STICK_LX), 0.70f);
+  filt_ly = applyAnalogFilter(1, analogRead(PIN_STICK_LY), 0.70f);
+  int raw_rx        = analogRead(PIN_STICK_RX);
+  uint16_t inv_rx   = (raw_rx <= 4095) ? (4095 - raw_rx) : 0; // Inverted for 90° mount
+  filt_rx = applyAnalogFilter(2, inv_rx, 0.70f);
+  filt_ry = applyAnalogFilter(3, analogRead(PIN_STICK_RY), 0.70f);
+
+  // RIGHT JOYSTICK HARDWARE CROSS-TALK ISOLATION & LARGE DEADBAND DRIFT FILTER
+  int diff_lx = abs((int)filt_lx - (int)auto_center_lx);
+  int diff_ly = abs((int)filt_ly - (int)auto_center_ly);
+  if (diff_lx <= (int)remoteConfig.deadband_l) filt_lx = auto_center_lx;
+  if (diff_ly <= (int)remoteConfig.deadband_l) filt_ly = auto_center_ly;
+
+  if (remoteConfig.drive_profile == 0 || remoteConfig.drive_profile == 2) {
+    filt_ry = auto_center_ry; // Fully isolate vertical axis
+    int diff_rx = abs((int)filt_rx - (int)auto_center_rx);
+    if (diff_rx <= (int)remoteConfig.deadband_r) {
+      filt_rx = auto_center_rx;
+    }
+  } else {
+    int diff_rx = abs((int)filt_rx - (int)auto_center_rx);
+    int diff_ry = abs((int)filt_ry - (int)auto_center_ry);
+    if (diff_rx <= (int)remoteConfig.deadband_r) filt_rx = auto_center_rx;
+    if (diff_ry <= (int)remoteConfig.deadband_r) filt_ry = auto_center_ry;
+  }
+
+  // Compute Calibrated Normalized Percentages (-100% to +100%)
+  live_lx_pct  = calculateStickPercent(filt_lx, auto_center_lx, remoteConfig.deadband_l, remoteConfig.min_lx, remoteConfig.max_lx);
+  live_thr_pct = calculateStickPercent(filt_ly, auto_center_ly, remoteConfig.deadband_l, remoteConfig.min_ly, remoteConfig.max_ly);
+  live_str_pct = calculateStickPercent(filt_rx, auto_center_rx, remoteConfig.deadband_r, remoteConfig.min_rx, remoteConfig.max_rx);
+
+  // Read and Condition 3 Potentiometers (alpha = 0.25, Inverted: Clockwise = 100% Full)
+  int raw_pot_l      = analogRead(PIN_POT_LEFT);
+  uint16_t inv_pot_l = (raw_pot_l <= 4095) ? (4095 - raw_pot_l) : 0;
+  txPacket.pot_l     = applyAnalogFilter(4, inv_pot_l, 0.25f);   // Speed Governor
+
+  int raw_pot_c      = analogRead(PIN_POT_CENTER);
+  uint16_t inv_pot_c = (raw_pot_c <= 4095) ? (4095 - raw_pot_c) : 0;
+  txPacket.pot_c     = applyAnalogFilter(5, inv_pot_c, 0.25f);   // Turning Radius (0% to 75%)
+
+  int raw_pot_r      = analogRead(PIN_POT_RIGHT);
+  uint16_t inv_pot_r = (raw_pot_r <= 4095) ? (4095 - raw_pot_r) : 0;
+  txPacket.pot_r     = applyAnalogFilter(6, inv_pot_r, 0.25f);   // Display Selector Knob (PA2)
+
+  // Dynamic Display Page Selection via Pot Right (PA2) with 100-count hysteresis
+  static uint16_t lastPotR = 0;
+  if (abs((int)txPacket.pot_r - (int)lastPotR) > 80) {
+    lastPotR = txPacket.pot_r;
+    uint8_t targetPage = currentPage;
+    if (txPacket.pot_r < 950) {
+      targetPage = 0; // Page 1: Dashboard HUD
+    } else if (txPacket.pot_r > 1050 && txPacket.pot_r < 1950) {
+      targetPage = 1; // Page 2: 7-Channel Spectrum Analyzer
+    } else if (txPacket.pot_r > 2050 && txPacket.pot_r < 2950) {
+      targetPage = 2; // Page 3: Combat Powertrain MFD
+    } else if (txPacket.pot_r > 3050) {
+      targetPage = 3; // Page 4: Settings Menu
+    }
+
+    if (targetPage != currentPage) {
+      if (currentPage == 3 && menuState != MENU_STATE_ROOT) {
+        saveRemoteSettings();
+        menuState = MENU_STATE_ROOT;
+      }
+      currentPage = targetPage;
+      triggerAlert(ALERT_POT_NOTCH);
+    }
+  }
+
+  // Haptic Notches for Speed Governor (Pot L) and Turn Radius (Pot C)
+  static uint32_t lastPotNotchTime = 0;
+  uint16_t potValues[2] = { txPacket.pot_l, txPacket.pot_c };
+  for (uint8_t p = 0; p < 2; p++) {
+    int notch = potValues[p] / 205; // 20 discrete notches
+    if (potTrackers[p].lastNotch == -1) {
+      potTrackers[p].lastNotch   = notch;
+      potTrackers[p].lastReading = potValues[p];
+    } else {
+      if (notch != potTrackers[p].lastNotch && abs((int)potValues[p] - potTrackers[p].lastReading) > 120) {
+        potTrackers[p].lastNotch   = notch;
+        potTrackers[p].lastReading = potValues[p];
+        if (remoteConfig.notch_sound && (now - lastPotNotchTime >= 150)) {
+          lastPotNotchTime = now;
+          triggerAlert(ALERT_POT_NOTCH);
+        }
+      }
+    }
+  }
+
+  // Dynamic Turning Radius Computation from Center Pot (PA1)
+  uint8_t turn_ratio = (uint8_t)map(txPacket.pot_c, 0, 4095, 0, 75);
+
+  // ====================================================================
+  //  1.6. SETTINGS MENU INPUT PROCESSING (When on Page 4)
   // ====================================================================
   if (currentPage == 3) {
     handleSettingsMenuInput(now);
   }
 
   // ====================================================================
-  //  1.6. RECEIVE LIVE RETURN TELEMETRY FROM ESP32-CAM (USART1 PA10)
+  //  1.7. RECEIVE LIVE RETURN TELEMETRY FROM ESP32-CAM (USART1 PA10)
   //  Format: $RTL,<rssi>,<cur_l_ma>,<cur_r_ma>,<bat_mv>,<failsafe>*
   // ====================================================================
-  static char telemRxBuf[40];
+  static char telemRxBuf[64];
   static uint8_t telemRxIdx = 0;
 
-  while (Serial.available()) {
-    char c = (char)Serial.read();
+  auto processTelemByte = [&](char c) {
     if (c == '$') {
       telemRxIdx = 0;
       telemRxBuf[telemRxIdx++] = c;
@@ -1983,9 +2255,18 @@ void loop() {
         telemRxIdx = 0;
       }
     }
-  }
+  };
 
-  if (telem_link_ok && (now - lastTelemRxTime > 1500)) {
+  while (Serial.available()) {
+    processTelemByte((char)Serial.read());
+  }
+#if defined(Serial1)
+  while (Serial1.available()) {
+    processTelemByte((char)Serial1.read());
+  }
+#endif
+
+  if (telem_link_ok && (now - lastTelemRxTime > 2500)) {
     telem_link_ok = false;
     if (wasLinkConnected) {
       wasLinkConnected = false;
@@ -1994,280 +2275,125 @@ void loop() {
   }
 
   // ====================================================================
-  //  2. READ INPUTS & TRANSMIT SERIAL TELEOP (Configured Rate: 20/40/50 Hz)
+  //  2. TELEOPERATION PACKET TRANSMISSION (Configured Rate: 20/40/50 Hz)
   // ====================================================================
-  uint32_t txInterval = 1000 / (remoteConfig.refresh_rate > 0 ? remoteConfig.refresh_rate : 50);
-  if (now - lastTxTime >= txInterval) {
-    lastTxTime = now;
+  static bool wasInSettings = false;
+  if (currentPage == 3) {
+    if (!wasInSettings) {
+      wasInSettings = true;
+      // Send one single neutral emergency stop frame so rover halts instantly and safely
+      CyberPacket stopPkt;
+      memset(&stopPkt, 0, sizeof(CyberPacket));
+      stopPkt.device_id    = CYBER_DEVICE_ID;
+      stopPkt.seq_id       = (uint8_t)(frameCounter & 0xFF);
+      stopPkt.timestamp_ms = (uint16_t)(now & 0xFFFF);
+      stopPkt.frame_id     = (uint16_t)(++frameCounter & 0xFFFF);
+      stopPkt.speed_gov    = 15;
+      setCyberButtons(stopPkt, false, isMuted, false, false, false, false, 3);
+      setCyberModeFlags(stopPkt, remoteConfig.drive_profile, remoteConfig.refresh_rate);
+      stopPkt.crc8         = computeCyberChecksum(stopPkt);
 
-    // Read and Condition Joysticks with 3-Stage Filtering (alpha = 0.70)
-    filt_lx = applyAnalogFilter(0, analogRead(PIN_STICK_LX), 0.70f);
-    filt_ly = applyAnalogFilter(1, analogRead(PIN_STICK_LY), 0.70f);
-    int raw_rx        = analogRead(PIN_STICK_RX);
-    uint16_t inv_rx   = (raw_rx <= 4095) ? (4095 - raw_rx) : 0; // Inverted for 90° mount
-    filt_rx = applyAnalogFilter(2, inv_rx, 0.70f);
-    filt_ry = applyAnalogFilter(3, analogRead(PIN_STICK_RY), 0.70f);
-
-    // =========================================================================
-    // RIGHT JOYSTICK HARDWARE CROSS-TALK ISOLATION & LARGE DEADBAND DRIFT FILTER
-    // =========================================================================
-    // Hard clamp Left Stick to center within deadband_l
-    int diff_lx = abs((int)filt_lx - (int)auto_center_lx);
-    int diff_ly = abs((int)filt_ly - (int)auto_center_ly);
-    if (diff_lx <= (int)remoteConfig.deadband_l) filt_lx = auto_center_lx;
-    if (diff_ly <= (int)remoteConfig.deadband_l) filt_ly = auto_center_ly;
-
-    // Hard clamp Right Stick to center within deadband_r & isolate vertical axis
-    if (remoteConfig.drive_profile == 0 || remoteConfig.drive_profile == 2) {
-      filt_ry = auto_center_ry; // Fully isolate vertical axis
-      int diff_rx = abs((int)filt_rx - (int)auto_center_rx);
-      if (diff_rx <= (int)remoteConfig.deadband_r) {
-        filt_rx = auto_center_rx;
-      }
-    } else {
-      int diff_rx = abs((int)filt_rx - (int)auto_center_rx);
-      int diff_ry = abs((int)filt_ry - (int)auto_center_ry);
-      if (diff_rx <= (int)remoteConfig.deadband_r) filt_rx = auto_center_rx;
-      if (diff_ry <= (int)remoteConfig.deadband_r) filt_ry = auto_center_ry;
+      uint8_t stopFrame[19];
+      stopFrame[0]  = CYBER_FRAME_HEADER_1; // 0x5A
+      stopFrame[1]  = CYBER_FRAME_HEADER_2; // 0xA5
+      memcpy(&stopFrame[2], &stopPkt, sizeof(CyberPacket));
+      stopFrame[18] = CYBER_FRAME_TRAILER;  // 0xED
+      Serial.write(stopFrame, 19);
+#if defined(Serial1)
+      Serial1.write(stopFrame, 19);
+      Serial1.flush();
+#endif
+      Serial.flush();
     }
+    // STRICTLY SUPPRESS CONTINUOUS TELEOP TRANSMISSIONS WHILE IN SETTINGS MENU!
+  } else {
+    wasInSettings = false;
 
-    // Compute Calibrated Normalized Percentages (-100% to +100%) using dedicated separate deadbands
-    live_lx_pct  = calculateStickPercent(filt_lx, auto_center_lx, remoteConfig.deadband_l, remoteConfig.min_lx, remoteConfig.max_lx);
-    live_thr_pct = calculateStickPercent(filt_ly, auto_center_ly, remoteConfig.deadband_l, remoteConfig.min_ly, remoteConfig.max_ly);
-    live_str_pct = calculateStickPercent(filt_rx, auto_center_rx, remoteConfig.deadband_r, remoteConfig.min_rx, remoteConfig.max_rx);
-
-    // Assemble Calibrated Payload for Rover (Transmits 0-4095 with exact 2048 center)
-    if (remoteConfig.drive_profile == 0) { // Profile 0: ARCADE (2-STICK: Left Y Throttle, Right X Steering)
-      live_trk_l_pct    = live_thr_pct;
-      live_trk_r_pct    = 0; // Strictly quarantined to zero in Arcade Mode!
-      txPacket.stick_ly = mapPercentToADC(live_thr_pct);
-      txPacket.stick_rx = mapPercentToADC(live_str_pct);
-      txPacket.stick_lx = 2048; // Centered / quarantined for drive
-      txPacket.stick_ry = 2048; // Strictly quarantined: isolates hardware crosstalk on Veer's gimbal
-    } else if (remoteConfig.drive_profile == 1) { // Profile 1: TANK DRIVE (2-STICK: Left Y Track L, Right Y Track R)
-      live_trk_l_pct    = live_thr_pct;
-      live_trk_r_pct    = calculateStickPercent(filt_ry, auto_center_ry, remoteConfig.deadband_r, remoteConfig.min_ry, remoteConfig.max_ry);
-      txPacket.stick_ly = mapPercentToADC(live_trk_l_pct);
-      txPacket.stick_ry = mapPercentToADC(live_trk_r_pct);
-      txPacket.stick_lx = 2048; // Centered
-      txPacket.stick_rx = 2048; // Centered
-    } else { // Profile 2: 1-STICK (LEFT STICK ONLY: Left Y Throttle, Left X Steering)
-      live_trk_l_pct    = live_thr_pct;
-      live_trk_r_pct    = 0;
-      live_str_pct      = live_lx_pct; // Left Stick X steers the rover!
-      txPacket.stick_ly = mapPercentToADC(live_thr_pct);
-      txPacket.stick_rx = mapPercentToADC(live_lx_pct); // Transmitted as vehicle steering channel
-      txPacket.stick_lx = 2048;
-      txPacket.stick_ry = 2048; // Completely quarantine erratic Right Stick!
-    }
-
-    // Read and Condition 3 Potentiometers (alpha = 0.25, Inverted: Clockwise = 100% Full)
-    int raw_pot_l      = analogRead(PIN_POT_LEFT);
-    uint16_t inv_pot_l = (raw_pot_l <= 4095) ? (4095 - raw_pot_l) : 0;
-    txPacket.pot_l     = applyAnalogFilter(4, inv_pot_l, 0.25f);   // Speed Governor
-
-    int raw_pot_c      = analogRead(PIN_POT_CENTER);
-    uint16_t inv_pot_c = (raw_pot_c <= 4095) ? (4095 - raw_pot_c) : 0;
-    txPacket.pot_c     = applyAnalogFilter(5, inv_pot_c, 0.25f);   // Turning Radius (0% to 75%)
-
-    int raw_pot_r      = analogRead(PIN_POT_RIGHT);
-    uint16_t inv_pot_r = (raw_pot_r <= 4095) ? (4095 - raw_pot_r) : 0;
-    txPacket.pot_r     = applyAnalogFilter(6, inv_pot_r, 0.25f);   // Display Selector Knob (PA2)
-
-    // Dynamic Display Page Selection via Pot Right (PA2) with 100-count hysteresis
-    uint8_t targetPage = currentPage;
-    if (txPacket.pot_r < 950) {
-      targetPage = 0; // Page 1: Dashboard HUD
-    } else if (txPacket.pot_r > 1050 && txPacket.pot_r < 1950) {
-      targetPage = 1; // Page 2: 7-Channel Spectrum Analyzer
-    } else if (txPacket.pot_r > 2050 && txPacket.pot_r < 2950) {
-      targetPage = 2; // Page 3: Combat Powertrain MFD
-    } else if (txPacket.pot_r > 3050) {
-      targetPage = 3; // Page 4: Settings Menu
-    }
-
-    if (targetPage != currentPage) {
-      if (currentPage == 3 && menuState != MENU_STATE_ROOT) {
-        saveRemoteSettings();
-        menuState = MENU_STATE_ROOT;
-      }
-      currentPage = targetPage;
-      triggerAlert(ALERT_POT_NOTCH);
-    }
-
-    // Haptic Notches for Speed Governor (Pot L) and Turn Radius (Pot C)
-    uint16_t potValues[2] = { txPacket.pot_l, txPacket.pot_c };
-    for (uint8_t p = 0; p < 2; p++) {
-      int notch = potValues[p] / 205; // 20 discrete notches
-      if (potTrackers[p].lastNotch == -1) {
-        potTrackers[p].lastNotch   = notch;
-        potTrackers[p].lastReading = potValues[p];
+    uint32_t txInterval = 1000 / (remoteConfig.refresh_rate > 0 ? remoteConfig.refresh_rate : 50);
+    if (now - lastTxTime >= txInterval) {
+      if (now - lastTxTime < 2 * txInterval) {
+        lastTxTime += txInterval; // Phase-locked rate maintenance
       } else {
-        if (notch != potTrackers[p].lastNotch && abs((int)potValues[p] - potTrackers[p].lastReading) > 65) {
-          potTrackers[p].lastNotch   = notch;
-          potTrackers[p].lastReading = potValues[p];
-          if (remoteConfig.notch_sound) {
-            triggerAlert(ALERT_POT_NOTCH);
-          }
-        }
+        lastTxTime = now;
       }
-    }
 
-    // Dynamic Turning Radius Computation from Center Pot (PA1)
-    // 0 = 0% inner wheel speed (tight 1-wheel pivot, R = 0.13m)
-    // 75 = 75% inner wheel speed (wide sweeping arc, R = 0.91m)
-    uint8_t turn_ratio = (uint8_t)map(txPacket.pot_c, 0, 4095, 0, 75);
-
-
-    // Pack 6 Digital Channels
-    txPacket.toggle_l    = digInputs[0].state ? 1 : 0; // Arm / Disarm
-    txPacket.toggle_r    = isMuted ? 1 : 0;            // Mute Flag
-    txPacket.push_l      = digInputs[2].state ? 1 : 0;
-    txPacket.push_r      = digInputs[3].state ? 1 : 0;
-    txPacket.stick_clk_l = digInputs[4].state ? 1 : 0;
-    txPacket.stick_clk_r = digInputs[5].state ? 1 : 0;
-
-    txPacket.frame_id    = ++frameCounter;
-
-    // ==================================================================
-    //  ESP-NOW SERIAL TRANSMISSION (USART1 PA9 -> ESP32-CAM @ 50 Hz)
-    // ==================================================================
-    char    esp_cmd   = 'S';
-    uint8_t esp_speed = 0;
-    uint8_t esp_turbo = turboActive ? 1 : 0;
-
-    bool isArmed = (currentPage != 3 && !armSafetyLockout && digInputs[0].state);
-
-    if (isArmed) {
-      float gov_factor = 0.15f + 0.85f * ((float)txPacket.pot_l / 4095.0f);
-      if (gov_factor > 1.0f)  gov_factor = 1.0f;
-      if (gov_factor < 0.15f) gov_factor = 0.15f;
-      float gov_max_pwm = 70.0f + (gov_factor * 185.0f); // 70 to 255
-      if (esp_turbo) gov_max_pwm = 255.0f;
-
-      if (remoteConfig.drive_profile == 0) {
-        // PROFILE 0: 2-STICK ARCADE (Left Y Throttle, Right X Steering)
-        int abs_thr = abs(live_thr_pct);
-        if (live_thr_pct > 12) {
-          if (live_str_pct < -20)      esp_cmd = 'L'; // Steer Left (Inner wheels slowed proportionally by turn_ratio)
-          else if (live_str_pct > 20)  esp_cmd = 'R'; // Steer Right (Inner wheels slowed proportionally by turn_ratio)
-          else                         esp_cmd = 'F'; // Straight Forward
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_thr, 12, 100, 70, (int)gov_max_pwm);
-        } else if (live_thr_pct < -12) {
-          if (live_str_pct < -20)      esp_cmd = 'G'; // Reverse Turn Left
-          else if (live_str_pct > 20)  esp_cmd = 'I'; // Reverse Turn Right
-          else                         esp_cmd = 'B'; // Straight Reverse
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_thr, 12, 100, 70, (int)gov_max_pwm);
-        } else {
-          // Zero throttle: In-place Skid-Steer Tank Spins (Pivot on spot!)
-          if (live_str_pct < -20) {
-            esp_cmd = 'Q'; // Tank Spin Left (CCW Pivot)
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(-live_str_pct, 20, 100, 70, (int)gov_max_pwm);
-          } else if (live_str_pct > 20) {
-            esp_cmd = 'E'; // Tank Spin Right (CW Pivot)
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(live_str_pct, 20, 100, 70, (int)gov_max_pwm);
-          } else {
-            esp_cmd = 'S'; // Dead-man neutral stop
-            esp_speed = 0;
-          }
-        }
-      } else if (remoteConfig.drive_profile == 1) {
-        // PROFILE 1: DUAL-STICK TANK DRIVE (Left Y = Track L, Right Y = Track R)
-        int tl = live_trk_l_pct;
-        int tr = live_trk_r_pct;
-        int abs_l = abs(tl);
-        int abs_r = abs(tr);
-        int max_dev = max(abs_l, abs_r);
-
-        if (max_dev <= 12) {
-          esp_cmd = 'S';
-          esp_speed = 0;
-        } else if (tl > 12 && tr > 12) {
-          int diff = tl - tr;
-          if (diff > 25) {
-            esp_cmd = 'R';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(tl, 12, 100, 70, (int)gov_max_pwm);
-          } else if (diff < -25) {
-            esp_cmd = 'L';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(tr, 12, 100, 70, (int)gov_max_pwm);
-          } else {
-            esp_cmd = 'F';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map((tl + tr) / 2, 12, 100, 70, (int)gov_max_pwm);
-          }
-        } else if (tl < -12 && tr < -12) {
-          int diff = tl - tr;
-          if (diff > 25) {
-            esp_cmd = 'R';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_r, 12, 100, 70, (int)gov_max_pwm);
-          } else if (diff < -25) {
-            esp_cmd = 'L';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_l, 12, 100, 70, (int)gov_max_pwm);
-          } else {
-            esp_cmd = 'B';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map((abs_l + abs_r) / 2, 12, 100, 70, (int)gov_max_pwm);
-          }
-        } else if (tl > 12 && tr <= -12) {
-          esp_cmd = 'E'; // Tank Spin CW
-          esp_speed = esp_turbo ? 255 : (uint8_t)map((tl + abs_r) / 2, 12, 100, 70, (int)gov_max_pwm);
-        } else if (tl <= -12 && tr > 12) {
-          esp_cmd = 'Q'; // Tank Spin CCW
-          esp_speed = esp_turbo ? 255 : (uint8_t)map((abs_l + tr) / 2, 12, 100, 70, (int)gov_max_pwm);
-        } else if (tl > 12) {
-          esp_cmd = 'R';
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(tl, 12, 100, 70, (int)gov_max_pwm);
-        } else if (tr > 12) {
-          esp_cmd = 'L';
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(tr, 12, 100, 70, (int)gov_max_pwm);
-        } else if (tl < -12) {
-          esp_cmd = 'L';
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_l, 12, 100, 70, (int)gov_max_pwm);
-        } else if (tr < -12) {
-          esp_cmd = 'R';
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_r, 12, 100, 70, (int)gov_max_pwm);
-        } else {
-          esp_cmd = 'S';
-          esp_speed = 0;
-        }
-      } else {
-        // PROFILE 2: 1-STICK LEFT ARCADE (Left Y Throttle, Left X Steering)
-        int abs_thr = abs(live_thr_pct);
-        if (live_thr_pct > 12) {
-          if (live_lx_pct < -20)       esp_cmd = 'L';
-          else if (live_lx_pct > 20)   esp_cmd = 'R';
-          else                         esp_cmd = 'F';
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_thr, 12, 100, 70, (int)gov_max_pwm);
-        } else if (live_thr_pct < -12) {
-          if (live_lx_pct < -20)       esp_cmd = 'G'; // Reverse Turn Left
-          else if (live_lx_pct > 20)   esp_cmd = 'I'; // Reverse Turn Right
-          else                         esp_cmd = 'B'; // Straight Reverse
-          esp_speed = esp_turbo ? 255 : (uint8_t)map(abs_thr, 12, 100, 70, (int)gov_max_pwm);
-        } else {
-          if (live_lx_pct < -20) {
-            esp_cmd = 'Q';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(-live_lx_pct, 20, 100, 70, (int)gov_max_pwm);
-          } else if (live_lx_pct > 20) {
-            esp_cmd = 'E';
-            esp_speed = esp_turbo ? 255 : (uint8_t)map(live_lx_pct, 20, 100, 70, (int)gov_max_pwm);
-          } else {
-            esp_cmd = 'S';
-            esp_speed = 0;
-          }
-        }
+      // Assemble Calibrated Payload for Rover (Transmits 0-4095 with exact 2048 center)
+      if (remoteConfig.drive_profile == 0) { // Profile 0: ARCADE (2-STICK: Left Y Throttle, Right X Steering)
+        live_trk_l_pct    = live_thr_pct;
+        live_trk_r_pct    = 0; // Strictly quarantined to zero in Arcade Mode!
+        txPacket.stick_ly = mapPercentToADC(live_thr_pct);
+        txPacket.stick_rx = mapPercentToADC(live_str_pct);
+        txPacket.stick_lx = 2048; // Centered / quarantined for drive
+        txPacket.stick_ry = 2048; // Strictly quarantined: isolates hardware crosstalk on Veer's gimbal
+      } else if (remoteConfig.drive_profile == 1) { // Profile 1: TANK DRIVE (2-STICK: Left Y Track L, Right Y Track R)
+        live_trk_l_pct    = live_thr_pct;
+        live_trk_r_pct    = calculateStickPercent(filt_ry, auto_center_ry, remoteConfig.deadband_r, remoteConfig.min_ry, remoteConfig.max_ry);
+        txPacket.stick_ly = mapPercentToADC(live_trk_l_pct);
+        txPacket.stick_ry = mapPercentToADC(live_trk_r_pct);
+        txPacket.stick_lx = 2048; // Centered
+        txPacket.stick_rx = 2048; // Centered
+      } else { // Profile 2: 1-STICK (LEFT STICK ONLY: Left Y Throttle, Left X Steering)
+        live_trk_l_pct    = live_thr_pct;
+        live_trk_r_pct    = 0;
+        live_str_pct      = live_lx_pct; // Left Stick X steers the rover!
+        txPacket.stick_ly = mapPercentToADC(live_thr_pct);
+        txPacket.stick_rx = mapPercentToADC(live_lx_pct); // Transmitted as vehicle steering channel
+        txPacket.stick_lx = 2048;
+        txPacket.stick_ry = 2048; // Completely quarantine erratic Right Stick!
       }
-    } else {
-      esp_cmd   = 'S';
-      esp_speed = 0;
-      esp_turbo = 0;
-    }
 
-    // Stream 6-Byte Framed Packet over Serial (PA9) to ESP32-CAM Gateway
-    // Format: [0xAA] [CMD] [SPEED] [TURN_RATIO] [TURBO] [0x55]
-    Serial.write(0xAA);
-    Serial.write((uint8_t)esp_cmd);
-    Serial.write(esp_speed);
-    Serial.write(turn_ratio);
-    Serial.write(esp_turbo);
-    Serial.write(0x55);
+      // Pack 6 Digital Channels
+      txPacket.toggle_l    = digInputs[0].state ? 1 : 0; // Arm / Disarm
+      txPacket.toggle_r    = isMuted ? 1 : 0;            // Mute Flag
+      txPacket.push_l      = digInputs[2].state ? 1 : 0;
+      txPacket.push_r      = digInputs[3].state ? 1 : 0;
+      txPacket.stick_clk_l = digInputs[4].state ? 1 : 0;
+      txPacket.stick_clk_r = 0; // Isolated broken gimbal tactile switch
+
+      txPacket.frame_id    = ++frameCounter;
+
+      // TRANSMIT COMPACT 16-BYTE CYBERPACKET (19-Byte UART Frame @ 20/40/50 Hz)
+      CyberPacket cyberPkt;
+      cyberPkt.device_id    = CYBER_DEVICE_ID;
+      cyberPkt.seq_id       = (uint8_t)(frameCounter & 0xFF);
+      cyberPkt.timestamp_ms = (uint16_t)(now & 0xFFFF);
+      cyberPkt.axis_lx      = (int8_t)live_lx_pct;
+      cyberPkt.axis_ly      = (int8_t)live_thr_pct;
+      cyberPkt.axis_rx      = (int8_t)live_str_pct;
+      cyberPkt.axis_ry      = (int8_t)live_trk_r_pct;
+
+      float current_gov   = 0.15f + 0.85f * ((float)txPacket.pot_l / 4095.0f);
+      if (current_gov > 1.0f)  current_gov = 1.0f;
+      if (current_gov < 0.15f) current_gov = 0.15f;
+      cyberPkt.speed_gov  = (uint8_t)(current_gov * 100.0f);
+      cyberPkt.turn_ratio = (uint8_t)constrain((int)turn_ratio, 0, 75);
+      cyberPkt.pot_aux    = (uint8_t)constrain((int)((txPacket.pot_r * 100) / 4095), 0, 100);
+
+      bool isArmedState   = (digInputs[0].state && currentPage != 3 && !armSafetyLockout);
+      setCyberButtons(cyberPkt,
+                      isArmedState,
+                      isMuted,
+                      digInputs[2].state,  // PL
+                      digInputs[3].state,  // PR
+                      digInputs[4].state,  // CKL / Turbo
+                      false,               // CKR decommissioned
+                      currentPage);
+      setCyberModeFlags(cyberPkt, remoteConfig.drive_profile, remoteConfig.refresh_rate);
+      cyberPkt.frame_id   = (uint16_t)(frameCounter & 0xFFFF);
+      cyberPkt.crc8       = computeCyberChecksum(cyberPkt);
+
+      uint8_t cyberFrame[19];
+      cyberFrame[0]  = CYBER_FRAME_HEADER_1; // 0x5A
+      cyberFrame[1]  = CYBER_FRAME_HEADER_2; // 0xA5
+      memcpy(&cyberFrame[2], &cyberPkt, sizeof(CyberPacket));
+      cyberFrame[18] = CYBER_FRAME_TRAILER;  // 0xED
+      Serial.write(cyberFrame, 19);
+#if defined(Serial1)
+      Serial1.write(cyberFrame, 19);
+#endif
+
+      last_turn_ratio = turn_ratio;
+    }
   }
 
   // ====================================================================
@@ -2323,9 +2449,15 @@ void loop() {
     drive_mode = 'D'; // Drive Mode Armed ('D')
   }
 
-  // Smooth Speed & RPM with Exponential Moving Average (EMA)
-  speed_smooth += (target_speed - speed_smooth) * 0.22f;
-  rpm_smooth   += (target_rpm   - rpm_smooth)   * 0.22f;
+  // Fluid, frame-rate independent exponential gauge smoothing (0.8s time constant):
+  static uint32_t lastSmoothTick = 0;
+  if (lastSmoothTick == 0) lastSmoothTick = now;
+  float dt = (float)(now - lastSmoothTick) / 1000.0f;
+  lastSmoothTick = now;
+  if (dt > 0.1f) dt = 0.1f; // Clamp in case of large interval
+  float smooth_alpha = 1.0f - expf(-4.5f * dt);
+  speed_smooth += (target_speed - speed_smooth) * smooth_alpha;
+  rpm_smooth   += (target_rpm   - rpm_smooth)   * smooth_alpha;
 
   // Steering Blinkers & Turn Indicators:
   // Arcade Mode: Right Stick X (STR). Pushing Left (< -15%) -> Blinker Left (◄).
@@ -2347,9 +2479,10 @@ void loop() {
   bool blink_state = ((now / 250) % 2 == 0);
 
   // ====================================================================
-  //  4. NON-BLOCKING OLED DASHBOARD REFRESH (25 FPS = 40ms interval)
+  //  4. NON-BLOCKING OLED DASHBOARD REFRESH (10 FPS = 100ms interval)
+  //  Tuned to 10 FPS to guarantee 100% CPU priority for 50 Hz RF teleop
   // ====================================================================
-  if (now - lastOledTime >= 40) {
+  if (now - lastOledTime >= 100) {
     lastOledTime = now;
     if (currentPage == 0) {
       renderDashboardHUD(drive_mode, governor_factor, txPacket.pot_c, txPacket.pot_r,

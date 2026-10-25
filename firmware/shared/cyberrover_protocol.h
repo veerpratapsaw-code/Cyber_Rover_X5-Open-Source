@@ -60,20 +60,63 @@ struct RoverPacket {
 };
 #pragma pack(pop)
 
+// =============================================================================
+//  CYBERPACKET (16-BYTE INDUSTRIAL TELEOPERATION SPECIFICATION v3.0)
+// =============================================================================
+#define CYBER_FRAME_HEADER_1  0x5A
+#define CYBER_FRAME_HEADER_2  0xA5
+#define CYBER_FRAME_TRAILER   0xED
+#define CYBER_DEVICE_ID       0xC5  // Authentic CyberRover X5 Hardware Signature
+#define CYBER_PACKET_SIZE     16    // 16-Byte Standard Struct
+
+#define CYBER_BTN_ARM_BIT     0 // Bit 0: 1 = ARMED ('D'), 0 = PARK ('P')
+#define CYBER_BTN_MUTE_BIT    1 // Bit 1: 1 = MUTE ON, 0 = SOUND ON
+#define CYBER_BTN_PL_BIT      2 // Bit 2: 1 = Left Button PRESSED
+#define CYBER_BTN_PR_BIT      3 // Bit 3: 1 = Right Button PRESSED
+#define CYBER_BTN_CKL_BIT     4 // Bit 4: 1 = Left Click PRESSED (Turbo)
+#define CYBER_BTN_CKR_BIT     5 // Bit 5: 1 = Right Click PRESSED
+#define CYBER_PAGE_MASK       0xC0 // Bits 6-7: Display Page (0 to 3)
+#define CYBER_PAGE_SHIFT      6
+
+#define CYBER_PROFILE_MASK    0x0F // Bits 0-3: Profile (0=Arcade, 1=Tank, 2=1-Stick)
+#define CYBER_RATE_MASK       0xF0 // Bits 4-7: Rate / 10 (2=20Hz, 4=40Hz, 5=50Hz)
+#define CYBER_RATE_SHIFT      4
+
+#pragma pack(push, 1)
+/**
+ * @brief High-Throughput 16-Byte Packed Binary Teleoperation Packet
+ */
+struct CyberPacket {
+  uint8_t  device_id;    // [0]     0xC5: Device Signature & Anti-Hijack Filter
+  uint8_t  seq_id;       // [1]     Rolling frame sequence counter (0 - 255)
+  uint16_t timestamp_ms; // [2-3]   Transmitter hardware clock (0 - 65535 ms)
+  int8_t   axis_lx;      // [4]     Left Stick X (-100% to +100%)
+  int8_t   axis_ly;      // [5]     Left Stick Y (-100% to +100%) [Throttle]
+  int8_t   axis_rx;      // [6]     Right Stick X (-100% to +100%) [Steering in Arcade]
+  int8_t   axis_ry;      // [7]     Right Stick Y (-100% to +100%) [Track R in Tank]
+  uint8_t  speed_gov;    // [8]     Speed Governor Factor (15 to 100%) [Pot Left]
+  uint8_t  turn_ratio;   // [9]     Dynamic Turn Radius / Trim (0 to 75%) [Pot Center]
+  uint8_t  pot_aux;      // [10]    Auxiliary Knob 3 / Page (0 to 100%) [Pot Right]
+  uint8_t  buttons;      // [11]    bit0=ARM, bit1=MUTE, bit2=PL, bit3=PR, bit4=CKL, bit5=CKR, bit6-7=Page (0-3)
+  uint8_t  mode_flags;   // [12]    bits 0-3 = Profile (0=Arcade, 1=Tank, 2=1-Stick), bits 4-7 = Rate / 10 (2, 4, 5)
+  uint16_t frame_id;     // [13-14] Monotonic 16-bit Master Frame Counter (0 - 65535)
+  uint8_t  crc8;         // [15]    CRC-8-ATM (Polynomial 0x07) over bytes [0..14]
+};
+#pragma pack(pop)
+
 #ifdef __cplusplus
 }
 #endif
 
 #ifdef __cplusplus
-// Compile-time static assertion to strictly enforce 24-byte packet layout
+// Compile-time static assertions to strictly enforce packet layouts
 static_assert(sizeof(RoverPacket) == CYBERROVER_PACKET_SIZE, 
               "CRITICAL DEFECT: RoverPacket memory layout must be exactly 24 bytes!");
+static_assert(sizeof(CyberPacket) == CYBER_PACKET_SIZE, 
+              "CRITICAL DEFECT: CyberPacket memory layout must be exactly 16 bytes!");
 
 /**
- * @brief Strict Packet Sanity Validator.
- * Rejects corrupt packets caused by SPI bus floating (0xFFFF), cable brownouts, or memory corruption.
- * @param pkt Packet to validate.
- * @return true if all fields conform to physical bounds, false otherwise.
+ * @brief Strict RoverPacket Sanity Validator.
  */
 inline bool isRoverPacketValid(const RoverPacket& pkt) {
   if (pkt.stick_lx > ADC_RESOLUTION_MAX || pkt.stick_ly > ADC_RESOLUTION_MAX ||
@@ -86,6 +129,104 @@ inline bool isRoverPacketValid(const RoverPacket& pkt) {
       pkt.stick_clk_l > 1 || pkt.stick_clk_r > 1) {
     return false;
   }
+  return true;
+}
+
+/**
+ * @brief Helper Accessors for CyberPacket.
+ */
+inline bool getCyberArm(const CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_ARM_BIT)) != 0; }
+inline bool getCyberMute(const CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_MUTE_BIT)) != 0; }
+inline bool getCyberBtnPL(const CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_PL_BIT)) != 0; }
+inline bool getCyberBtnPR(const CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_PR_BIT)) != 0; }
+inline bool getCyberBtnCKL(const CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_CKL_BIT)) != 0; }
+inline bool getCyberBtnCKR(const CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_CKR_BIT)) != 0; }
+inline uint8_t getCyberPage(const CyberPacket& p) { return (p.buttons >> CYBER_PAGE_SHIFT) & 0x03; }
+inline uint8_t getCyberProfile(const CyberPacket& p) { return (p.mode_flags & CYBER_PROFILE_MASK); }
+inline uint8_t getCyberRateHz(const CyberPacket& p) { return ((p.mode_flags >> CYBER_RATE_SHIFT) & 0x0F) * 10; }
+
+inline bool getCyberArm(const volatile CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_ARM_BIT)) != 0; }
+inline bool getCyberMute(const volatile CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_MUTE_BIT)) != 0; }
+inline bool getCyberBtnPL(const volatile CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_PL_BIT)) != 0; }
+inline bool getCyberBtnPR(const volatile CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_PR_BIT)) != 0; }
+inline bool getCyberBtnCKL(const volatile CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_CKL_BIT)) != 0; }
+inline bool getCyberBtnCKR(const volatile CyberPacket& p) { return (p.buttons & (1 << CYBER_BTN_CKR_BIT)) != 0; }
+inline uint8_t getCyberPage(const volatile CyberPacket& p) { return (p.buttons >> CYBER_PAGE_SHIFT) & 0x03; }
+inline uint8_t getCyberProfile(const volatile CyberPacket& p) { return (p.mode_flags & CYBER_PROFILE_MASK); }
+inline uint8_t getCyberRateHz(const volatile CyberPacket& p) { return ((p.mode_flags >> CYBER_RATE_SHIFT) & 0x0F) * 10; }
+
+inline void setCyberButtons(CyberPacket& p, bool arm, bool mute, bool pl, bool pr, bool ckl, bool ckr, uint8_t page) {
+  p.buttons = (arm ? 1 : 0) |
+              ((mute ? 1 : 0) << 1) |
+              ((pl ? 1 : 0) << 2) |
+              ((pr ? 1 : 0) << 3) |
+              ((ckl ? 1 : 0) << 4) |
+              ((ckr ? 1 : 0) << 5) |
+              ((page & 0x03) << 6);
+}
+
+inline void setCyberModeFlags(CyberPacket& p, uint8_t profile, uint8_t rate_hz) {
+  uint8_t rate_code = rate_hz / 10;
+  p.mode_flags = (profile & CYBER_PROFILE_MASK) | ((rate_code & 0x0F) << CYBER_RATE_SHIFT);
+}
+
+/**
+ * @brief Industrial CRC-8-ATM / ITU Polynomial 0x07 (x^8 + x^2 + x + 1)
+ */
+inline uint8_t computeCyberCRC8(const uint8_t* data, size_t len) {
+  uint8_t crc = 0x00;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (uint8_t b = 0; b < 8; b++) {
+      if (crc & 0x80) {
+        crc = (crc << 1) ^ 0x07;
+      } else {
+        crc <<= 1;
+      }
+    }
+  }
+  return crc;
+}
+
+inline uint8_t computeCyberChecksum(const CyberPacket& p) {
+  return computeCyberCRC8(reinterpret_cast<const uint8_t*>(&p), sizeof(CyberPacket) - 1);
+}
+
+inline uint8_t computeCyberChecksum(const volatile CyberPacket& p) {
+  return computeCyberCRC8(reinterpret_cast<const uint8_t*>((const void*)&p), sizeof(CyberPacket) - 1);
+}
+
+inline uint8_t computeCyberCrc8(const CyberPacket& p) {
+  return computeCyberChecksum(p);
+}
+
+inline uint8_t computeCyberCrc8(const volatile CyberPacket& p) {
+  return computeCyberChecksum(p);
+}
+
+inline bool isCyberPacketValid(const CyberPacket& p) {
+  if (p.device_id != CYBER_DEVICE_ID) return false;
+  if (p.axis_lx < -100 || p.axis_lx > 100) return false;
+  if (p.axis_ly < -100 || p.axis_ly > 100) return false;
+  if (p.axis_rx < -100 || p.axis_rx > 100) return false;
+  if (p.axis_ry < -100 || p.axis_ry > 100) return false;
+  if (p.speed_gov > 100) return false;
+  if (p.turn_ratio > 100) return false;
+  if (p.pot_aux > 100) return false;
+  if (computeCyberChecksum(p) != p.crc8) return false;
+  return true;
+}
+
+inline bool isCyberPacketValid(const volatile CyberPacket& p) {
+  if (p.device_id != CYBER_DEVICE_ID) return false;
+  if (p.axis_lx < -100 || p.axis_lx > 100) return false;
+  if (p.axis_ly < -100 || p.axis_ly > 100) return false;
+  if (p.axis_rx < -100 || p.axis_rx > 100) return false;
+  if (p.axis_ry < -100 || p.axis_ry > 100) return false;
+  if (p.speed_gov > 100) return false;
+  if (p.turn_ratio > 100) return false;
+  if (p.pot_aux > 100) return false;
+  if (computeCyberChecksum(p) != p.crc8) return false;
   return true;
 }
 #endif
