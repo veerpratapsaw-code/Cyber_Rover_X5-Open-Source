@@ -160,3 +160,11 @@ If you are entering robotics tournaments, combat challenges, or tech exhibitions
 This project is released **100% open source** to demonstrate what is achievable with everyday materials, standard electronic components, and an AI engineering partner. 
 
 Take the plans, adapt the dimensions, improve the software, and build your own high-performance autonomous machines! 🚀
+
+---
+
+## 📚 Essential Companion Guides
+* 📱 **[Phone & PC Coding Requirements](REQUIREMENTS.md):** How to code, flash, and test using an ordinary ₹5,000 Android smartphone with OTG!
+* 🧾 **[Bill of Materials (BOM) & Salvage Hacks](BOM.md):** Full component list and how to get parts for under ₹500.
+* ⚠️ **[What NOT to Do (Rookie Traps Guide)](WHAT_NOT_TO_DO.md):** Avoid the generic ChatGPT trap, voltage brownouts, and loose wiring pitfalls!
+

@@ -6,7 +6,7 @@
 **System Status:** **Physical Ground Teleoperation Tested & Verified (v2.0)**  
 **Drivetrain:** 4x 12V 600 RPM Johnson Geared Motors (555 Armature) + 100mm Ribbed Wheels  
 **Teleop Link:** 50 Hz Zero-Drop ESP-NOW (Channel 1, Smart Direct Unicast, 0ms Modem Wake-Up)  
-**Builder's Guide:** 📖 **[Read the Step-by-Step Practical Build Guide (HOW_TO_MAKE.md)](HOW_TO_MAKE.md)**
+**Quick Links:** 📖 **[How to Build](HOW_TO_MAKE.md)** | 📱 **[Phone & PC Specs](REQUIREMENTS.md)** | 🧾 **[Lowest-Cost Parts (BOM)](BOM.md)** | ⚠️ **[Traps to Avoid](WHAT_NOT_TO_DO.md)**
 
 ---
 
@@ -15,6 +15,9 @@
 ```
 cyberrover X5/
 ├── HOW_TO_MAKE.md                    <-- STEP-BY-STEP PRACTICAL BUILD GUIDE
+├── REQUIREMENTS.md                   <-- PHONE VS PC CODING & WORKSHOP SPECS
+├── BOM.md                            <-- LOWEST-COST PARTS LIST & SALVAGE HACKS
+├── WHAT_NOT_TO_DO.md                 <-- ROOKIE MISTAKES & CHATGPT TRAPS TO AVOID
 ├── ai/                               <-- DEDICATED FOR AI ASSISTANTS & LLMS
 │   ├── AGENTS.md                     <-- Mandatory directives, operating rules & memory mandate
 │   ├── AI_CONTEXT_HANDOFF.txt        <-- Continuous engineering memory log (Steps 1 to 4.32)

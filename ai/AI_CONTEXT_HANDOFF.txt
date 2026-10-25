@@ -1542,13 +1542,22 @@ Step 4.33: Open-Source Student Architecture & GitHub Publication Readiness (Octo
 Step 4.34: Live GitHub Publication & Universal Builder Architecture (October 25, 2026): [COMPLETED & LIVE ONLINE]
   - Repository Published Live Online:
     * Public GitHub URL: https://github.com/veerpratapsaw-code/Cyber_Rover_X5-Open-Source
-    * Remote: origin -> https://github.com/veerpratapsaw-code/Cyber_Rover_X5-Open-Source.git
-    * Default Branch: main (fully synchronized and up to date)
-  - Universal Builder Guide & Visual Hero Deployment:
-    * Deployed `HOW_TO_MAKE.md` featuring hero image of physical rover and custom remote at the very top.
-    * Universalized terminology across `README.md` and `HOW_TO_MAKE.md` (zero restricted age/student terms, accessible to all makers, creators, and hobbyists).
-    * Embedded motivating 80-hour / 7-day engineering commitment reality check.
-    * Step-by-step instructions for launching in Google Antigravity, Cursor, VS Code, and Windsurf with universal prompt template.
+Step 4.35: Builder Companion Guides Deployment — Phone Coding, BOM, & What Not To Do (October 25, 2026): [COMPLETED]
+  - Smartphone Coding & Hardware Requirements Guide (`REQUIREMENTS.md`):
+    * Validated that CyberRover X5 can be built, coded, and flashed using an ordinary budget Android phone (even ₹5,000 phone) via USB OTG.
+    * Documented mobile tools: Chrome WebUSB Flasher (espressif.github.io/esptool-js / web.esphome.io), ArduinoDroid, and Serial USB Terminal.
+    * Demystified PC requirements: Runs smoothly on any 10-year-old second-hand laptop or dual-core potato PC (zero gaming rig required).
+  - Bill of Materials & Lowest Cost Salvage Guide (`BOM.md`):
+    * Complete itemized pricing: ~₹2,400 to ₹3,200 brand new vs ₹250 to ₹600 via smart salvage.
+    * Documented money-saving hacks: Salvaging 18650 cells from discarded laptop batteries, carpentry scrap plywood/MDF, and hardware store L-brackets.
+  - Rookie Traps & What NOT to Do Guide (`WHAT_NOT_TO_DO.md`):
+    * Trap 1: The generic ChatGPT "give me code for rc car" trap that hallucinates obsolete, broken code.
+    * Trap 2: Loose DuPont jumper wires that vibrate loose on concrete.
+    * Trap 3: Direct 1S battery connection to 3.3V LDO causing 1.1V dropout and radio brownouts (enforcing MT3608 boost).
+    * Trap 4: Reverse polarity battery short-circuits.
+    * Trap 5: Expensive commercial radio/3D printer traps.
+    * Trap 6: Premature complexity trap (staged verification mandate).
+    * Trap 7: Full throttle landings on ramp jumps stripping spur gears.
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
