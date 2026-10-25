@@ -6,7 +6,7 @@
 **System Status:** **Physical Ground Teleoperation Tested & Verified (v2.0)**  
 **Drivetrain:** 4x 12V 600 RPM Johnson Geared Motors (555 Armature) + 100mm Ribbed Wheels  
 **Teleop Link:** 50 Hz Zero-Drop ESP-NOW (Channel 1, Smart Direct Unicast, 0ms Modem Wake-Up)  
-**Quick Links:** 📖 **[How to Build](HOW_TO_MAKE.md)** | 📱 **[Phone & PC Specs](REQUIREMENTS.md)** | 🧾 **[Lowest-Cost Parts (BOM)](BOM.md)** | ⚠️ **[Traps to Avoid](WHAT_NOT_TO_DO.md)**
+**Quick Links:** 📖 **[How to Build](user/HOW_TO_MAKE.md)** | 📱 **[Phone & PC Specs](user/REQUIREMENTS.md)** | 🧾 **[Lowest-Cost Parts (BOM)](user/BOM.md)** | ⚠️ **[Traps to Avoid](user/WHAT_NOT_TO_DO.md)**
 
 ---
 
@@ -14,18 +14,19 @@
 
 ```
 cyberrover X5/
-├── HOW_TO_MAKE.md                    <-- STEP-BY-STEP PRACTICAL BUILD GUIDE
-├── REQUIREMENTS.md                   <-- PHONE VS PC CODING & WORKSHOP SPECS
-├── BOM.md                            <-- LOWEST-COST PARTS LIST & SALVAGE HACKS
-├── WHAT_NOT_TO_DO.md                 <-- ROOKIE MISTAKES & CHATGPT TRAPS TO AVOID
 ├── ai/                               <-- DEDICATED FOR AI ASSISTANTS & LLMS
 │   ├── AGENTS.md                     <-- Mandatory directives, operating rules & memory mandate
-│   ├── AI_CONTEXT_HANDOFF.txt        <-- Continuous engineering memory log (Steps 1 to 4.32)
+│   ├── AI_CONTEXT_HANDOFF.txt        <-- Continuous engineering memory log (Steps 1 to 4.35)
 │   ├── CYBERROVER_MASTER_KNOWLEDGE_BASE.md <-- 868-line comprehensive technical encyclopedia
 │   ├── CYBERROVER_X5_REMOTE_CONTROLLER_MASTER_GUIDE.md <-- Complete transmitter blueprint
 │   └── README.md                     <-- AI ingestion guide & quickstart
 │
 ├── user/                             <-- DEDICATED FOR HUMAN DEVELOPERS & BUILDERS
+│   ├── HOW_TO_MAKE.md                <-- STEP-BY-STEP PRACTICAL BUILD GUIDE
+│   ├── REQUIREMENTS.md               <-- PHONE VS PC CODING & WORKSHOP SPECS
+│   ├── BOM.md                        <-- LOWEST-COST PARTS LIST & SALVAGE HACKS
+│   ├── WHAT_NOT_TO_DO.md             <-- ROOKIE MISTAKES & CHATGPT TRAPS TO AVOID
+│   │
 │   ├── development/                  <-- ACTIVE DEVELOPMENT & BENCH TEST LAB
 │   │   ├── firmware/                 <-- Working firmware (TX, Motor Supervisor, Gateway, Shared)
 │   │   ├── hardware_bench_tests/     <-- 10 isolated peripheral diagnostic test sketches

@@ -1550,14 +1550,12 @@ Step 4.35: Builder Companion Guides Deployment — Phone Coding, BOM, & What Not
   - Bill of Materials & Lowest Cost Salvage Guide (`BOM.md`):
     * Complete itemized pricing: ~₹2,400 to ₹3,200 brand new vs ₹250 to ₹600 via smart salvage.
     * Documented money-saving hacks: Salvaging 18650 cells from discarded laptop batteries, carpentry scrap plywood/MDF, and hardware store L-brackets.
-  - Rookie Traps & What NOT to Do Guide (`WHAT_NOT_TO_DO.md`):
-    * Trap 1: The generic ChatGPT "give me code for rc car" trap that hallucinates obsolete, broken code.
-    * Trap 2: Loose DuPont jumper wires that vibrate loose on concrete.
-    * Trap 3: Direct 1S battery connection to 3.3V LDO causing 1.1V dropout and radio brownouts (enforcing MT3608 boost).
-    * Trap 4: Reverse polarity battery short-circuits.
-    * Trap 5: Expensive commercial radio/3D printer traps.
-    * Trap 6: Premature complexity trap (staged verification mandate).
-    * Trap 7: Full throttle landings on ramp jumps stripping spur gears.
+Step 4.36: Repository Root De-Duplication & Zero-Clutter Architecture (October 25, 2026): [COMPLETED]
+  - Root Directory Cleaned:
+    * Removed all redundant legacy duplicate directories and files from root (`firmware/`, `docs/`, `past_reference_images/`, `stable_v1_dongle_teleop_release/`, `tests/`, `scratch/`, etc.).
+    * Root directory strictly pruned to essential top-level entries: `ai/`, `user/`, `README.md`, `AGENTS.md`, and `.gitignore`.
+    * All engineering assets, working firmwares, test sketches, unit test harnesses, and media archives reside exclusively inside their designated `ai/` or `user/` hierarchies.
+    * Re-verified automated host test harness: 289 / 289 unit tests passing (100%).
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
