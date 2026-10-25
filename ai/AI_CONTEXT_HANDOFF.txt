@@ -1550,12 +1550,14 @@ Step 4.35: Builder Companion Guides Deployment — Phone Coding, BOM, & What Not
   - Bill of Materials & Lowest Cost Salvage Guide (`BOM.md`):
     * Complete itemized pricing: ~₹2,400 to ₹3,200 brand new vs ₹250 to ₹600 via smart salvage.
     * Documented money-saving hacks: Salvaging 18650 cells from discarded laptop batteries, carpentry scrap plywood/MDF, and hardware store L-brackets.
-Step 4.36: Repository Root De-Duplication & Zero-Clutter Architecture (October 25, 2026): [COMPLETED]
-  - Root Directory Cleaned:
-    * Removed all redundant legacy duplicate directories and files from root (`firmware/`, `docs/`, `past_reference_images/`, `stable_v1_dongle_teleop_release/`, `tests/`, `scratch/`, etc.).
-    * Root directory strictly pruned to essential top-level entries: `ai/`, `user/`, `README.md`, `AGENTS.md`, and `.gitignore`.
-    * All engineering assets, working firmwares, test sketches, unit test harnesses, and media archives reside exclusively inside their designated `ai/` or `user/` hierarchies.
-    * Re-verified automated host test harness: 289 / 289 unit tests passing (100%).
+Step 4.37: Authentic Bill of Materials & Real Market Pricing Deployment (October 25, 2026): [COMPLETED]
+  - Bill of Materials Updated to Exact Production Specs (`user/BOM.md`):
+    * Rover Hardware Platform: Verified Robu.in pricing across Johnson 600 RPM motors (4x ₹611 = ₹2,444), EasyMech L-clamps (4x ₹181 = ₹724), 100mm wheels (4x ₹149 = ₹596), Dual BTS7960 drivers (2x ₹329 = ₹658), Plywood chassis (₹100), STM32 (₹250), ESP32-S3 (₹500), 3S 2200mAh LiPo (₹1,800), 5V Buck (₹50), and 30A Switch + XT60 (₹100) = ₹7,322 total.
+    * Custom Handheld Remote Transmitter: Calibrated to ~₹2,000 all-inclusive (STM32, ESP32, 2x gimbals, 3x pots, 1.3" OLED, 1S 18650 cell, TP4056 + MT3608 boost, switches, 2mm MDF case, and wiring). Documented budget single-ESP32 option for 100m range.
+    * Miscellaneous Prototyping Hardware: ₹500 (Zero/dotted perfboard, header strips, 14/16 AWG silicon wire, ribbon cable, heat-shrink).
+    * Essential Beginner Tooling Kit: ₹800 (Soldering iron, 3M solder, flux, glue gun + 10 sticks, digital multimeter).
+    * Workbench Power Supply Recommendation: Bench DC variable supply (0-30V, 5A/10A) for LiPo-free long test sessions.
+    * Total System Investment: ₹9,822 turn-key machine (vs ₹25,000–₹45,000 commercial alternatives).
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
