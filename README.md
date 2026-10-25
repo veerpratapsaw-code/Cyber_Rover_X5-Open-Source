@@ -1,10 +1,12 @@
 # 🚀 CYBERROVER X5 — HEAVY-DUTY HAZMAT & DISASTER RECONNAISSANCE UGV
 
-**Lead Architect:** **Veer Pratap Saw** (Class 10 Student | Katras / Ramgarh, Jharkhand, India)  
+![CyberRover X5 & Custom Handheld Remote](user/media/photos/cyberrover_x5_hero.jpg)
+
+**Lead Architect:** **Veer Pratap Saw** (Katras / Dhanbad / Ramgarh, Jharkhand, India)  
 **System Status:** **Physical Ground Teleoperation Tested & Verified (v2.0)**  
 **Drivetrain:** 4x 12V 600 RPM Johnson Geared Motors (555 Armature) + 100mm Ribbed Wheels  
 **Teleop Link:** 50 Hz Zero-Drop ESP-NOW (Channel 1, Smart Direct Unicast, 0ms Modem Wake-Up)  
-**Student Guide:** 📖 **[Read the Step-by-Step Student Guide (Class 6 to 9)](HOW_TO_MAKE.md)**
+**Builder's Guide:** 📖 **[Read the Step-by-Step Practical Build Guide (HOW_TO_MAKE.md)](HOW_TO_MAKE.md)**
 
 ---
 
@@ -12,7 +14,7 @@
 
 ```
 cyberrover X5/
-├── HOW_TO_MAKE.md                    <-- STEP-BY-STEP GUIDE FOR STUDENTS (CLASS 6 TO 9)
+├── HOW_TO_MAKE.md                    <-- STEP-BY-STEP PRACTICAL BUILD GUIDE
 ├── ai/                               <-- DEDICATED FOR AI ASSISTANTS & LLMS
 │   ├── AGENTS.md                     <-- Mandatory directives, operating rules & memory mandate
 │   ├── AI_CONTEXT_HANDOFF.txt        <-- Continuous engineering memory log (Steps 1 to 4.32)
