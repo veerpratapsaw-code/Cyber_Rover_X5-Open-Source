@@ -1529,6 +1529,16 @@ Step 4.32: Physical Vehicle & Remote Assembly Completed — Successful Ground Fi
       - Optimal Recommended Payload: 3.0 kg to 4.0 kg (preserves 600 RPM gearboxes on jump landings).
       - Maximum In-Place Skid-Steer Turning Payload: ~5.5 kg (Total vehicle weight ~8.0 kg).
       - Rolling Pulling / Tug Capacity: > 15 kg on wheeled trailer.
+Step 4.33: Open-Source Student Architecture & GitHub Publication Readiness (October 25, 2026): [COMPLETED]
+  - Student Empowerment Document Deployed:
+    * Created `HOW_TO_MAKE.md` targeted at Class 6 to 9 students in friendly, accessible English.
+    * Explains the 4-phase physical build (Wood body, Johnson 600 RPM motors, BTS7960/STM32/ESP32 electronics, and handheld transmitter).
+    * Guides students on opening the workspace in Agentic AI software (Google Antigravity, Cursor, VS Code with Cline/Copilot, Windsurf).
+    * Deployed the exact "Magic Prompt" enabling any AI model to ingest `AGENTS.md` and act as an interactive, patient robotics tutor.
+    * Outlines RoboFight tactics (2.4 kg mass, 97.6 N tractive push force, 0.26s acceleration, and steel bracket armor).
+  - GitHub Publication Architecture:
+    * Git repository fully committed with clean working tree across 3 commits (ca0b0b2, 9018128, bb57024).
+    * Formatted root `README.md` with direct link to `HOW_TO_MAKE.md` and concise repository sitemap.
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
