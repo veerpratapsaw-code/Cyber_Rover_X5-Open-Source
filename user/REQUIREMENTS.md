@@ -29,9 +29,20 @@ You can write code, chat with an AI mentor, and flash firmware into both the **E
    * **Chrome WebUSB Flasher (Zero App Install):** Open Google Chrome on your Android phone, connect the ESP32 via OTG, and navigate to **[espressif.github.io/esptool-js/](https://espressif.github.io/esptool-js/)** or **[web.esphome.io](https://web.esphome.io/)**. You can flash the compiled binary directly with one tap!
    * **ArduinoDroid App (Google Play Store):** A complete Arduino IDE on your phone. You can open `.ino` sketches, compile them, and flash directly to your boards over USB OTG.
    * **Serial USB Terminal (Google Play Store):** Allows you to see live serial telemetry, monitor battery voltage at 115200 baud, and test single-key drive commands (`W`, `S`, `A`, `D`, `X`) from your phone's keyboard.
-3. **Using AI on Your Phone:**
-   * Open the free **ChatGPT, Claude, or Gemini mobile app**.
-   * Open this GitHub repository in your phone's browser, copy the files from the `ai/` folder, and give the AI the **Magic Prompt** from [`HOW_TO_MAKE.md`](HOW_TO_MAKE.md)!
+3. **Agentic AI Tools That Run on Your Phone (Autonomous Coding Mentors):**
+   * **GitHub Codespaces in Mobile Browser (Recommended — Zero Install):**
+     * Open Chrome on Android, go to the repository (`github.com/veerpratapsaw-code/Cyber_Rover_X5-Open-Source`), tap **Code ➔ Codespaces ➔ Create Codespace**.
+     * Boots a full VS Code IDE in your browser with 60 free hours/month.
+     * With GitHub Copilot Agent mode active, the AI autonomously reads [`ai/AGENTS.md`](ai/AGENTS.md), navigates files, and writes code for you directly in the cloud.
+   * **Replit Mobile App (Google Play Store):**
+     * Install the official Replit app on Android and import this GitHub repo.
+     * The built-in **Replit Agent** can inspect repository files, edit code across multiple sketches, and troubleshoot compile issues directly on your phone.
+   * **Termux + Aider CLI (Power-User Autonomous Agent on Android):**
+     * Install **Termux** (from F-Droid), install Python & Git, and run `pip install aider-chat`.
+     * Run `aider` inside the cloned folder. Aider is a full terminal agentic AI that automatically edits code files, runs tests, and commits to git right on your phone!
+   * **Claude Projects / Custom GPTs (Mobile Web & App):**
+     * In the Claude or ChatGPT mobile app, create a project and upload [`ai/AGENTS.md`](ai/AGENTS.md) and [`ai/AI_CONTEXT_HANDOFF.txt`](ai/AI_CONTEXT_HANDOFF.txt) into the knowledge base.
+     * Give the AI the **Magic Prompt** from [`HOW_TO_MAKE.md`](HOW_TO_MAKE.md) to receive project-specific guidance without hallucinations.
 
 ---
 
