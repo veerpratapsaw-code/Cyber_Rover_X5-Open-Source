@@ -1,0 +1,148 @@
+================================================================================
+CYBERROVER X5 — STABLE DONGLE TELEOPERATION SYSTEM SPECIFICATION v1.0
+================================================================================
+PROJECT HERITAGE   : CyberRover X1 -> X2 -> X3 -> X4 -> X4.2 -> X4.3 (State Champion) -> X5
+LEAD ARCHITECT     : Veer Pratap Saw (Veer) | Class 10 Student, Katras / Ramgarh, Jharkhand
+SYSTEM CLASSIFICATION: High-Reliability Dual-Core RF Teleoperation & Supervisor Stack
+RELEASE STATUS     : VERIFIED & BENCHMARK STABLE (Zero Jerk, Zero Crawl, Smooth Acceleration)
+DATE OF RECORD     : October 23, 2026
+================================================================================
+
+1. SUBSYSTEM ARCHITECTURAL TOPOLOGY
+--------------------------------------------------------------------------------
+The CyberRover X5 Dongle Teleoperation System uses a 4-tier decoupled pipeline:
+
+  [ PC Gamer Cockpit ]  --> Python 3 Windows Multimedia Timer Engine (90 Hz, 1ms sync)
+          |
+     (USB CDC @ 115200)
+          v
+  [ MCU 1: Dongle TX ]  --> AI-Thinker ESP32-CAM USB Dongle (Wi-Fi Channel 1 Locked)
+          |
+    (ESP-NOW 2.4 GHz)   --> Bi-Directional RF Stream (60-90 Hz Control / 20 Hz Telemetry)
+          v
+  [ MCU 2: Rover S3 ]   --> ESP32-S3 DevKit N16R8 (Autonomous RF Gateway & S3 Bridge)
+          |
+   (UART1 @ 115200)     --> 5-Byte Binary Frames (<10us Forwarding, Zero ASCII Choke)
+          v
+  [ MCU 3: STM32 Pill]  --> STM32F103C8T6 ARM Cortex-M3 (Hardware Drivetrain Supervisor)
+          |
+   (TIM4 Hardware PWM)  --> 0.00V Flat GND Lock, Soft-Start Inception & 100 Hz Ramping
+          v
+  [ Drivetrain Power ]  --> Dual BTS7960 43A MOSFET Drivers + 4x 12V 600 RPM Johnson Motors
+
+================================================================================
+2. COMPONENT SPECIFICATIONS & BENCHMARK NUMBERS
+================================================================================
+
+A. MCU 1: Laptop USB Dongle Transmitter
+--------------------------------------------------------------------------------
+• Hardware       : AI-Thinker ESP32-CAM (ESP32-D0WD-V3 Dual-Core @ 240 MHz)
+• Power Source   : 5.0V from Laptop USB Port via FTDI / CH340 / ESP32-CAM-MB Baseboard
+• Operating Mode : Station Mode (WIFI_STA) with Promiscuous Hardware Lock
+• RF Channel     : Channel 1 (2412 MHz) enforced via 'esp_wifi_set_channel(1, ...)'
+• Radio Protocol : ESP-NOW Unicast directly to Rover S3 MAC (with Dynamic Broadcast Pairing)
+• Teleop Cadence : 60 to 90 Hz transmission rate
+• Telemetry Loop : Receives 'RoverFeedbackPacket' from Rover S3, extracts antenna RSSI (dBm),
+                   and streams formatted status 'STAT:ACK_OK,RSSI:<dBm>,...' to Python HUD.
+
+B. MCU 2: Rover Wireless Bridge & Gateway
+--------------------------------------------------------------------------------
+• Hardware       : ESP32-S3 DevKit (N16R8, Dual-Core Xtensa LX7 @ 240 MHz, 16MB Flash, 8MB PSRAM)
+• Power Source   : 5.0V from Rover System Power Distribution Bus
+• Wi-Fi Channel  : Channel 1 (2412 MHz) locked via 'esp_wifi_set_channel(1, ...)'
+• Receive Context: Lightweight ISR callback 'onDataRecv()' (Zero transmission contention!)
+• S3-to-STM32 Bus: Hardware UART1 (GPIO 17 = TX1 -> PA10, GPIO 18 = RX1 <- PA9) @ 115200 baud
+• Failsafe Watch : 500ms Autonomous Hardware Dead-Man Timer. Automatically dispatches
+                   emergency STOP frame [0xAA, 'S', 0, 0x53, 0x55] if radio beacon drops.
+• Telemetry Out  : 20 Hz return stream to Dongle from main loop (Outside ISR).
+
+C. MCU 3: STM32 Motor Supervisor & Gearbox Protector
+--------------------------------------------------------------------------------
+• Hardware       : STM32F103C8T6 (Blue Pill, 32-bit ARM Cortex-M3 @ 72 MHz)
+• Operating Mode : 100% Native 3.3V CMOS Logic
+• Motor Timer    : TIM4 Hardware Output Channels (PB6=TIM4_CH1, PB7=TIM4_CH2, PB8=TIM4_CH3, PB9=TIM4_CH4)
+• Slew Ramping   : 100 Hz Slew-Rate Acceleration Limiter:
+                   - ACCEL_STEP    = 2.2f  (220 PWM/sec -> ~530ms smooth progressive luxury ramp)
+                   - DECEL_STEP    = 18.0f (1800 PWM/sec -> ~90ms crisp, safe dead-man stop)
+                   - MIN_START_PWM = 48.0f (Soft-start inception threshold; eliminates stiction delay)
+                   - MIN_DRIVE_PWM = 45.0f (Deadband ground snap threshold)
+• Reversal Guard : 35ms Zero-PWM Dwell when reversing polarity (Prevents H-bridge shoot-through)
+• Ground Lock    : Mandatory 'analogWrite(pin, 0)' timer compare zeroing + 'digitalWrite(LOW)'
+                   latch (Eliminates residual PWM crawl forever!)
+• Dead-Man Failsafe: 350ms watchdog timeout with immediate 0.00V hardware emergency stop.
+• Telemetry Link : Compact 10 Hz non-blocking '$M,Left,Right\n' status string to S3 (No ASCII flooding).
+
+D. Power & Drivetrain Subsystem
+--------------------------------------------------------------------------------
+• Motors         : 4x 12V 600 RPM Johnson Geared Motors (555 Core, 12.44 kg-cm stall torque)
+• Wheels         : 100mm High-Traction Rubber Tread Wheels
+• Motor Drivers  : 2x BTS7960 (IBT-2) 43A MOSFET H-Bridges (Left & Right pairs)
+• Driver Logic VCC: 3.3V from STM32 3.3V rail (Lowers 74HC244 input threshold to 2.31V,
+                    yielding +0.99V noise-immune safety margin over 3.3V STM32 signals).
+• Battery Input  : 3S Li-ion / LiPo (11.1V Nominal, 12.6V Peak) wired to driver screw terminals.
+• Top Speed      : 11.31 km/h (3.14 m/s at 255 PWM Turbo)
+• Static Stability: SSF = 2.36 (67° static rollover angle; safe full-throttle turn radius R >= 0.43m).
+
+================================================================================
+3. INTER-CHIP PACKET & FRAME DEFINITIONS
+================================================================================
+
+A. PC-to-Dongle Serial Protocol (6 Bytes @ 115200 baud):
+--------------------------------------------------------------------------------
+Byte 0: 0xAA (Packet Sync Header)
+Byte 1: Command ID (0 to 8)
+Byte 2: Speed PWM (0 to 255)
+Byte 3: Active Gear (1 to 9)
+Byte 4: Turbo Flag (0 = Normal, 1 = Turbo 100%)
+Byte 5: 0x55 (Packet End Footer)
+
+B. Dongle-to-Rover ESP-NOW Control Packet (8 Bytes Struct, Packed):
+--------------------------------------------------------------------------------
+Offset 0: uint32_t packet_id  (Monotonic frame counter)
+Offset 4: uint8_t  cmd_id     (0=Stop, 1=Fwd, 2=Back, 3=PivotL, 4=PivotR, 5=LFrnt, 6=RFrnt, 7=LBack, 8=RBack)
+Offset 5: uint8_t  speed      (0 to 255 PWM)
+Offset 6: uint8_t  gear       (1 to 9)
+Offset 7: uint8_t  turbo      (0 or 1)
+
+C. Rover-to-Dongle ESP-NOW Telemetry Packet (12 Bytes Struct, Packed):
+--------------------------------------------------------------------------------
+Offset 0: uint32_t ack_packet_id    (Echo of last received packet_id)
+Offset 4: int8_t   s3_rx_rssi       (Signal strength measured at Rover antenna in dBm)
+Offset 5: int16_t  motor_left_pwm   (Live Left motor PWM: -255 to +255)
+Offset 7: int16_t  motor_right_pwm  (Live Right motor PWM: -255 to +255)
+Offset 9: uint8_t  current_amps_x10 (Total motor current in 0.1A units)
+Offset 10: uint8_t flags            (Failsafe & link health status)
+Offset 11: uint8_t reserved         (Alignment byte)
+
+D. S3-to-STM32 Inter-MCU UART Frame (5 Bytes @ 115200 baud):
+--------------------------------------------------------------------------------
+Byte 0: 0xAA (Frame Header)
+Byte 1: Command Character ('S', 'F', 'B', 'Q', 'E', 'L', 'R', 'G', 'I')
+Byte 2: Target Speed PWM (0 to 255)
+Byte 3: Checksum = (Byte 1 + Byte 2) & 0xFF
+Byte 4: 0x55 (Frame Footer)
+
+E. STM32-to-S3 Telemetry Feedback (Non-Blocking ASCII @ 10 Hz):
+--------------------------------------------------------------------------------
+Format: "$M,<LeftPWM>,<RightPWM>\n"
+Example: "$M,165,165\n" (Cruising forward at 165 PWM)
+Example: "$M,0,0\n"       (Stopped, 0.00V GND Locked)
+
+================================================================================
+4. KEYBOARD MAPPING IN PC GAMER COCKPIT
+================================================================================
+• [W] or [UP]       : Forward Drive (CMD 1)
+• [S] or [DOWN]     : Reverse Drive (CMD 2)
+• [A] or [LEFT]     : Left Pivot Spin CCW (CMD 3)
+• [D] or [RIGHT]    : Right Pivot Spin CW (CMD 4)
+• [W + D] or [E]    : Front Right Turn (CMD 6)
+• [W + A] or [Q]    : Front Left Turn (CMD 5)
+• [S + D] or [C]    : Back Right Turn (CMD 8)
+• [S + A] or [Z]    : Back Left Turn (CMD 7)
+• [KEY RELEASE]     : Automatic 0ms Dead-Man Stop (CMD 0, 0 PWM, 0.00V Locked)
+• [SPACEBAR]        : Turbo Sprint Boost (Instant 100% / 255 PWM / 11.31 km/h)
+• [KEYS 1 to 9]     : Shift Speed Governors 1 to 9 (3.11 km/h to 11.31 km/h)
+• [ESC]             : Safe Cockpit Shutdown
+================================================================================
+END OF SPECIFICATION DOSSIER
+================================================================================
