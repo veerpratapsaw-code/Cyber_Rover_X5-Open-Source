@@ -1584,6 +1584,15 @@ Step 4.40: Mobile Phone Agentic AI Ecosystem Documentation (October 25, 2026): [
     * Termux + Aider CLI: Authentic local Linux environment on Android via F-Droid. Runs Aider (`pip install aider-chat`) for autonomous terminal-driven repository analysis, code modification, and git commits.
     * Claude Projects / Custom GPTs: Mobile knowledge base ingestion of `ai/AGENTS.md` and `ai/AI_CONTEXT_HANDOFF.txt` to eliminate hallucinations and guide students through firmware generation and debugging.
     * Documentation Sync: Integrated into `user/REQUIREMENTS.md`.
+Step 4.41: Single-ESP32 Receiver & Motor Supervisor Node + ChatGPT Context Handoff (October 26, 2026): [COMPLETED]
+  - Single-MCU Integrated Rover Firmware (`single_esp32_friend_rover_rx.ino`):
+    * Hardware Architecture: Single standard ESP32 DevKit V1 acting as both 50 Hz ESP-NOW receiver and dual BTS7960 motor supervisor. Zero STM32 or secondary MCU required.
+    * Pinout: GPIO 25 (L_RPWM), GPIO 26 (L_LPWM), GPIO 27 (L_EN), GPIO 32 (R_RPWM), GPIO 33 (R_LPWM), GPIO 14 (R_EN), GPIO 2 (Status LED). Safe non-strapping pins.
+    * PWM Configuration: 20 kHz ultrasonic LEDC hardware PWM with 8-bit resolution (0-255) for silent motor driving and low-side regenerative GND braking.
+    * Universal Protocol Support: Decodes both 16-byte `CyberPacket` (Veer's handheld remote) and 8-byte `GamerControlPacket` (PC dongle) seamlessly. Dynamically auto-pairs transmitter MAC address and transmits 12-byte `RoverFeedbackPacket` back to transmitter.
+    * Safety & Failsafe: 650ms watchdog dead-man timer and 15 PWM/cycle slew-rate acceleration limiter protecting gearboxes.
+  - Companion ChatGPT Context Handoff (`AI_CHATGPT_ROVER_CONTEXT.txt`):
+    * Complete, ready-to-paste context specification documenting hardware, pinout, BTS7960 logic, packet structures, safety rules, and instructions for any AI (ChatGPT/Claude/Gemini) to debug and modify the rover code without breaking 50 Hz teleop.
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed

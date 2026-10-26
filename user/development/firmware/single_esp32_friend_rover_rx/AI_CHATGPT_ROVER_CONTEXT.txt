@@ -1,0 +1,127 @@
+================================================================================
+CYBERROVER X5 — SINGLE-ESP32 ROVER ARCHITECTURE & CHATGPT CONTEXT HANDOFF
+================================================================================
+(Copy and paste this entire text file directly into ChatGPT, Claude, or Gemini 
+whenever you want to modify, debug, or add new features to your rover firmware!)
+================================================================================
+
+[1. PROJECT & MISSION OVERVIEW]
+You are an expert embedded systems and robotics engineer assisting a builder in 
+programming their 4WD Heavy-Duty Skid-Steer Combat/Reconnaissance Ground Rover.
+The vehicle is designed to be teleoperated by a remote transmitter or PC dongle 
+running the ultra-low-latency ESP-NOW wireless protocol (50 Hz / sub-5ms latency).
+
+The vehicle uses a "SINGLE-MCU" architecture: A single standard ESP32 DevKit V1 
+handles BOTH the 50 Hz wireless packet reception via ESP-NOW AND directly generates 
+high-frequency 20 kHz hardware PWM (LEDC) to drive two heavy-duty BTS7960 43A MOSFET 
+motor drivers. Zero secondary microcontrollers (like Arduino Uno or STM32) are needed.
+
+--------------------------------------------------------------------------------
+[2. PHYSICAL HARDWARE SPECIFICATIONS]
+- Vehicle Chassis : 4-Wheel Drive (4WD) Skid-Steer / Tank-Steer differential robot.
+- Motors          : 4x 12V 600 RPM Johnson Geared DC Motors (555 core). 
+                    Left front + rear are wired in parallel to BTS7960 #1.
+                    Right front + rear are wired in parallel to BTS7960 #2.
+- Motor Drivers   : 2x BTS7960 43A High-Power MOSFET H-Bridges.
+- Battery         : 3S 2200 mAh LiPo (11.1V nominal, 12.6V peak, 25C burst).
+- Logic Regulator : 5V 3A Step-Down Buck Converter (UBEC) stepping 12V down to 5.0V 
+                    for the ESP32 VIN pin. (NEVER connect 12V directly to ESP32!).
+- Wireless System : Built-in ESP32 2.4 GHz Wi-Fi PHY locked to Channel 1 using ESP-NOW.
+
+--------------------------------------------------------------------------------
+[3. EXACT HARDWARE PINOUT (ESP32 DevKit V1 -> Dual BTS7960)]
+All selected pins are 100% safe, non-strapping output GPIOs available on both 
+30-pin and 38-pin ESP32 DevKit boards:
+
+LEFT MOTOR DRIVER (BTS7960 #1 - Left Track):
+  * L_RPWM (Forward PWM)  -> ESP32 GPIO 25 (LEDC Channel 0, 20 kHz, 8-bit resolution)
+  * L_LPWM (Reverse PWM)  -> ESP32 GPIO 26 (LEDC Channel 1, 20 kHz, 8-bit resolution)
+  * L_EN   (R_EN & L_EN)  -> ESP32 GPIO 27 (Driver Enable: HIGH = Active, LOW = Sleep)
+
+RIGHT MOTOR DRIVER (BTS7960 #2 - Right Track):
+  * R_RPWM (Forward PWM)  -> ESP32 GPIO 32 (LEDC Channel 2, 20 kHz, 8-bit resolution)
+  * R_LPWM (Reverse PWM)  -> ESP32 GPIO 33 (LEDC Channel 3, 20 kHz, 8-bit resolution)
+  * R_EN   (R_EN & L_EN)  -> ESP32 GPIO 14 (Driver Enable: HIGH = Active, LOW = Sleep)
+
+STATUS & FEEDBACK:
+  * Onboard Blue LED      -> ESP32 GPIO 2  (Solid = Linked & Armed, Fast Blink = Disarmed, Slow Blink = Failsafe/Disconnected)
+
+POWER CONNECTIONS:
+  * ESP32 VIN Pin         -> 5.0V output of UBEC
+  * ESP32 GND Pin         -> Star Ground (Common return tied to battery GND and BTS7960 GNDs)
+  * BTS7960 VCC Pins      -> 5.0V output of UBEC (Logic supply)
+
+--------------------------------------------------------------------------------
+[4. BTS7960 MOSFET MOTOR DRIVING LOGIC]
+BTS7960 drivers provide low-side regenerative dynamic braking when both PWM inputs 
+are 0 while the Enable pin is held HIGH:
+  * FORWARD DRIVE : RPWM = PWM (1 to 255), LPWM = 0
+  * REVERSE DRIVE : RPWM = 0,             LPWM = PWM (1 to 255)
+  * ACTIVE BRAKE  : RPWM = 0,             LPWM = 0 (Low-side MOSFETs clamp motor terminals to GND)
+  * COAST / SLEEP : R_EN = LOW, L_EN = LOW (High impedance)
+
+--------------------------------------------------------------------------------
+[5. WIRELESS PROTOCOL & PACKET STRUCTURES]
+The ESP32 runs Wi-Fi Station mode on Channel 1 without connecting to an access point.
+It listens for incoming ESP-NOW packets and supports TWO packet types automatically:
+
+A. 16-Byte CyberPacket (Sent by Veer's Handheld Remote Transmitter):
+   struct CyberPacket {
+     uint8_t  device_id;    // Must equal 0xC5 (Device signature)
+     uint8_t  seq_id;       // Rolling sequence counter (0 - 255)
+     uint16_t timestamp_ms; // Transmitter clock timestamp
+     int8_t   axis_lx;      // Left Stick X (-100 to +100)
+     int8_t   axis_ly;      // Left Stick Y (-100 to +100) [Master Throttle]
+     int8_t   axis_rx;      // Right Stick X (-100 to +100) [Steering / Yaw]
+     int8_t   axis_ry;      // Right Stick Y (-100 to +100)
+     uint8_t  speed_gov;    // Speed Governor (15 to 100%)
+     uint8_t  turn_ratio;   // Dynamic Turn Ratio (0 to 75%)
+     uint8_t  pot_aux;      // Auxiliary input
+     uint8_t  buttons;      // bit0: ARM (1 = Armed, 0 = Park/Disarmed)
+     uint8_t  mode_flags;   // Operational profile flags
+     uint16_t frame_id;     // Monotonic frame index
+     uint8_t  crc8;         // CRC-8-ATM (Polynomial 0x07) over bytes [0..14]
+   };
+
+B. 8-Byte GamerControlPacket (Sent by PC Gamepad USB Dongle):
+   struct GamerControlPacket {
+     uint32_t packet_id;    // Monotonic frame counter
+     uint8_t  cmd_id;       // 0=Stop, 1=Fwd, 2=Back, 3=PivotL, 4=PivotR, 5=FL, 6=FR, 7=BL, 8=BR
+     uint8_t  speed;        // Integer PWM (0 to 255)
+     uint8_t  gear;         // Gear ratio multiplier
+     uint8_t  turbo;        // 1 = Turbo 100%, 0 = Normal
+   };
+
+C. 12-Byte Return Feedback Packet (Sent from Rover back to Transmitter):
+   The rover automatically registers the transmitter's MAC address from the first 
+   received packet and replies with a 12-byte heartbeat packet containing live PWM 
+   values and signal strength so the transmitter OLED/HUD displays real-time telemetry.
+
+--------------------------------------------------------------------------------
+[6. MANDATORY SAFETY RULES FOR CODE GENERATION]
+When modifying this code, you MUST preserve the following safety systems:
+1. Dead-Man Watchdog Failsafe:
+   If no valid radio packet is received for more than 650 milliseconds, the code 
+   MUST immediately cut target PWM to 0 and clamp all motor outputs to low-side ground.
+2. Slew-Rate Acceleration Limiter:
+   Motor PWM must not jump from -255 to +255 instantaneously. The slew rate is capped 
+   at MAX_ACCEL_STEP (15 PWM per 20ms cycle = 750 PWM/sec) to prevent stripping gearbox 
+   teeth and blowing battery fuses during high-speed direction changes.
+3. High PWM Frequency:
+   PWM frequency MUST stay at 20 kHz (`PWM_FREQ_HZ 20000`) so the motors operate 
+   silently without human-audible 490 Hz coil whistling.
+4. Auto-Pairing Architecture:
+   Never hardcode a fixed transmitter MAC address into the receiver. The receiver 
+   must dynamically auto-pair with the incoming transmitter address in the `onDataReceive` 
+   callback using `esp_now_add_peer()`.
+
+--------------------------------------------------------------------------------
+[7. INSTRUCTIONS FOR CHATGPT / AI ASSISTANT]
+When asked to modify this firmware:
+- Keep the code completely self-contained in a single `.ino` Arduino file.
+- Do NOT introduce delays (`delay()`) inside `loop()` or `onDataReceive()`. All timing 
+  must use non-blocking `millis()`.
+- If adding new features (e.g., servo camera tilt, ultrasonic obstacle detection, 
+  headlights, or neo-pixels), ensure they run as non-blocking state machines and DO NOT 
+  starve the 50 Hz motor supervisor loop.
+================================================================================
