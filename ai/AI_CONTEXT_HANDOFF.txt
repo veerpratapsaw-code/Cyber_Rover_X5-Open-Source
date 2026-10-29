@@ -1593,6 +1593,18 @@ Step 4.41: Single-ESP32 Receiver & Motor Supervisor Node + ChatGPT Context Hando
     * Safety & Failsafe: 650ms watchdog dead-man timer and 15 PWM/cycle slew-rate acceleration limiter protecting gearboxes.
   - Companion ChatGPT Context Handoff (`AI_CHATGPT_ROVER_CONTEXT.txt`):
     * Complete, ready-to-paste context specification documenting hardware, pinout, BTS7960 logic, packet structures, safety rules, and instructions for any AI (ChatGPT/Claude/Gemini) to debug and modify the rover code without breaking 50 Hz teleop.
+Step 4.42: Triple-Deck Plywood Chassis Standoff Architecture & Dimensional Blueprint (October 29, 2026): [COMPLETED]
+  - Physical Chassis Architecture & Geometric Truth:
+    1. Full-Size Triple-Deck Topology: Completely removed humanoid stage robot components. Ground rover base features 3 stacked, parallel 6mm plywood decks (Bottom Motor Deck, Middle Electronics Deck, and Elevated Top Canopy/Payload Deck).
+    2. Identical Deck Geometry Across All 3 Tiers:
+       - Overall Length: 300 mm (30.0 cm).
+       - Overall Width: 180 mm (18.0 cm).
+       - Aerodynamic 45° Chamfered Beveled Nose: Symmetrical dual 50 mm x 50 mm corner chamfers tapering to an 80 mm flat front nose tip.
+       - Upright Standoff Mounting Grid: 4x 8mm diameter through-holes spaced 150 mm apart laterally (15 mm inset from outer edges) and 220 mm longitudinally, securing 4x vertical M6/M8 threaded steel rods with double locknuts and upper wing nuts.
+       - Central Wiring Access Aperture: 70 mm x 45 mm rectangular center cutout routing 3S LiPo XT60 battery leads and motor wiring from lower bay to electronics deck.
+    3. Production Assets Committed:
+       * `user/media/cad_and_designs/cyberrover_x5_triple_deck_base.jpg`: Photorealistic terrace render showing the pure 4WD rover with full-size elevated top plywood deck and wing nuts.
+       * `user/media/cad_and_designs/cyberrover_x5_deck_blueprint.jpg`: 2D technical dimensional engineering cutting blueprint with millimeter tolerances and annotations.
 ================================================================================
 REMINDER TO FUTURE AI AGENTS:
 Keep this handoff updated! Append any new discoveries, pin modifications, or completed
